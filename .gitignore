@@ -1,0 +1,26 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Input data (contains personal information: owner names, parcel numbers)
+data/input/
+data/expected/
+
+# Generated output
+output/
+
+# Work notes
+要改善/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.Zone.Identifier
+*.mshield
+*.jw$
+
+# IDE
+.vscode/
+.idea/
