@@ -129,22 +129,22 @@ def page_dxf():
     st.title("DXF帳票自動生成")
     st.markdown("DXFファイルをアップロードすると、**結線指示票**と**交点計算指示書**を自動生成します。")
 
-    uploaded = st.file_uploader("DXFファイルを選択", type=["dxf", "DXF"])
+    uploaded = st.file_uploader("DXFファイルを選択", type=["dxf", "DXF"], key="dxf_upload")
 
     with st.expander("オプション設定"):
         col1, col2 = st.columns(2)
         with col1:
-            gen_kessen = st.checkbox("結線指示票を生成", value=True)
+            gen_kessen = st.checkbox("結線指示票を生成", value=True, key="chk_kessen")
         with col2:
-            gen_kouten = st.checkbox("交点計算指示書を生成", value=True)
+            gen_kouten = st.checkbox("交点計算指示書を生成", value=True, key="chk_kouten")
 
         block_number = st.number_input(
             "交点計算ブロック番号（0で全ブロック）",
-            min_value=0, value=0, step=1,
+            min_value=0, value=0, step=1, key="num_block",
         )
 
     # 「帳票を生成」ボタンが押されたら処理して結果を session_state に保存
-    if uploaded and st.button("帳票を生成", type="primary"):
+    if uploaded and st.button("帳票を生成", type="primary", key="btn_generate"):
         if not (gen_kessen or gen_kouten):
             st.warning("少なくとも1つの帳票を選択してください")
             return
@@ -249,7 +249,7 @@ def page_dxf():
         elif gen_kouten:
             st.info("交点計算指示書: 交点杭が見つかりませんでした")
 
-        if st.button("結果をクリア"):
+        if st.button("結果をクリア", key="btn_clear"):
             st.session_state.pop("results", None)
             st.rerun()
 
@@ -338,23 +338,24 @@ def main():
     if not check_auth():
         return
 
-    # ===== サイドバーナビゲーション =====
-    with st.sidebar:
-        st.markdown("### 地籍調査DXツール")
-        page = st.radio(
-            "機能選択",
-            ["DXF帳票生成", "土地データ照合"],
-            label_visibility="collapsed",
-        )
-        st.divider()
-        if st.button("ログアウト", use_container_width=True):
+    # ===== ヘッダー =====
+    col_title, col_logout = st.columns([4, 1])
+    with col_title:
+        st.markdown("### 📐 地籍調査DXツール")
+    with col_logout:
+        if st.button("ログアウト"):
             st.session_state.clear()
             st.rerun()
 
-    # ===== ページ切り替え =====
-    if page == "DXF帳票生成":
+    st.divider()
+
+    # ===== タブで機能切り替え =====
+    tab_dxf, tab_compare = st.tabs(["📄 DXF帳票生成", "🔍 土地データ照合"])
+
+    with tab_dxf:
         page_dxf()
-    elif page == "土地データ照合":
+
+    with tab_compare:
         page_access_compare()
 
 
