@@ -124,21 +124,9 @@ def process_dxf(dxf_path: str, parcels_filter, generate_kessen_flag: bool, gener
     return results
 
 
-def main():
-    st.set_page_config(page_title="地籍調査DX帳票自動生成", page_icon="📐", layout="centered")
-
-    if not check_auth():
-        return
-
-    # ===== 認証済み: メインUI =====
-    col_title, col_logout = st.columns([4, 1])
-    with col_title:
-        st.title("地籍調査DX帳票自動生成")
-    with col_logout:
-        if st.button("ログアウト"):
-            st.session_state.authenticated = False
-            st.rerun()
-
+def page_dxf():
+    """DXF帳票生成ページ"""
+    st.title("DXF帳票自動生成")
     st.markdown("DXFファイルをアップロードすると、**結線指示票**と**交点計算指示書**を自動生成します。")
 
     uploaded = st.file_uploader("DXFファイルを選択", type=["dxf", "DXF"])
@@ -264,6 +252,110 @@ def main():
         if st.button("結果をクリア"):
             st.session_state.pop("results", None)
             st.rerun()
+
+
+def _format_file_size(num_bytes: int) -> str:
+    """バイト数を人間可読形式に変換"""
+    for unit in ["B", "KB", "MB", "GB"]:
+        if num_bytes < 1024:
+            return f"{num_bytes:.1f} {unit}"
+        num_bytes /= 1024
+    return f"{num_bytes:.1f} TB"
+
+
+def page_access_compare():
+    """土地データ照合ページ（Accessファイル差分検出）"""
+    st.title("土地データ照合")
+    st.markdown(
+        "2台のPCで管理している**Accessファイル**をアップロードし、"
+        "差分を検出します。"
+    )
+    st.info("現在は**アップロード機能のみ実装**しています。照合ロジックは実データを確認した後で実装予定です。", icon="🛠️")
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("📁 ファイルA")
+        file_a = st.file_uploader(
+            "1台目のAccessファイルを選択",
+            type=["mdb", "accdb", "MDB", "ACCDB"],
+            key="access_a",
+        )
+        label_a = st.text_input("ファイルAのラベル（任意）", value="PC-1", key="label_a")
+
+    with col2:
+        st.subheader("📁 ファイルB")
+        file_b = st.file_uploader(
+            "2台目のAccessファイルを選択",
+            type=["mdb", "accdb", "MDB", "ACCDB"],
+            key="access_b",
+        )
+        label_b = st.text_input("ファイルBのラベル（任意）", value="PC-2", key="label_b")
+
+    if file_a and file_b:
+        st.divider()
+        st.subheader("アップロード済みファイル")
+
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.markdown(f"**{label_a}**")
+            st.text(f"ファイル名: {file_a.name}")
+            st.text(f"サイズ: {_format_file_size(file_a.size)}")
+            st.text(f"形式: {file_a.name.rsplit('.', 1)[-1].lower()}")
+        with col_b:
+            st.markdown(f"**{label_b}**")
+            st.text(f"ファイル名: {file_b.name}")
+            st.text(f"サイズ: {_format_file_size(file_b.size)}")
+            st.text(f"形式: {file_b.name.rsplit('.', 1)[-1].lower()}")
+
+        st.divider()
+
+        if st.button("照合を実行", type="primary", disabled=True):
+            st.warning("照合ロジックは未実装です。")
+
+        st.caption("※ 実装予定: テーブル一覧の比較 / レコードの差分抽出 / 差分帳票(Excel)の出力")
+
+        # 一時保存（将来の照合処理用にバイトデータを保持）
+        st.session_state["access_file_a"] = {
+            "name": file_a.name,
+            "size": file_a.size,
+            "bytes": file_a.getvalue(),
+            "label": label_a,
+        }
+        st.session_state["access_file_b"] = {
+            "name": file_b.name,
+            "size": file_b.size,
+            "bytes": file_b.getvalue(),
+            "label": label_b,
+        }
+
+    elif file_a or file_b:
+        st.warning("2つのファイルをアップロードしてください。")
+
+
+def main():
+    st.set_page_config(page_title="地籍調査DXツール", page_icon="📐", layout="centered")
+
+    if not check_auth():
+        return
+
+    # ===== サイドバーナビゲーション =====
+    with st.sidebar:
+        st.markdown("### 地籍調査DXツール")
+        page = st.radio(
+            "機能選択",
+            ["DXF帳票生成", "土地データ照合"],
+            label_visibility="collapsed",
+        )
+        st.divider()
+        if st.button("ログアウト", use_container_width=True):
+            st.session_state.clear()
+            st.rerun()
+
+    # ===== ページ切り替え =====
+    if page == "DXF帳票生成":
+        page_dxf()
+    elif page == "土地データ照合":
+        page_access_compare()
 
 
 if __name__ == "__main__":
