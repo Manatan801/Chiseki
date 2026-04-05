@@ -72,6 +72,7 @@ class ParsedDXF:
     parcels: list[ParcelInfo] = field(default_factory=list)
     public_lands: list[PublicLandInfo] = field(default_factory=list)
     graph: Optional[nx.Graph] = None
+    entity_counts: dict = field(default_factory=dict)
 
     def get_stake_by_number(self, number: str) -> Optional[Stake]:
         for s in self.stakes:
@@ -153,9 +154,25 @@ def parse_dxf(filepath: str, stake_match_threshold: float = 5.0,
         stake_match_threshold: 杭番号テキスト↔CIRCLE中心のマッチング閾値
         line_match_threshold: 線分端点↔杭座標のマッチング閾値
     """
-    doc = ezdxf.readfile(filepath)
+    # JW-CAD等で生成されたDXFの破損にも対応するため recover を使う
+    try:
+        doc = ezdxf.readfile(filepath)
+    except ezdxf.DXFStructureError:
+        from ezdxf import recover
+        doc, _auditor = recover.readfile(filepath)
+    except Exception:
+        # TypeError等のパースエラーもrecoverで再試行
+        from ezdxf import recover
+        doc, _auditor = recover.readfile(filepath)
     msp = doc.modelspace()
     result = ParsedDXF()
+
+    # エンティティタイプ別カウント（診断用）
+    entity_counts = {}
+    for e in msp:
+        t = e.dxftype()
+        entity_counts[t] = entity_counts.get(t, 0) + 1
+    result.entity_counts = entity_counts
 
     # Step 1: 全CIRCLE(r=0.25)の中心座標を杭として抽出
     stakes_by_pos = {}  # (round_x, round_y) -> Stake
