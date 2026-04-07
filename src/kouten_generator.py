@@ -1,12 +1,12 @@
 """交点計算指示書生成モジュール
 
-交点杭（マイナス接頭辞の杭番号）ごとに、
+交点杭（マイナス接頭辞 or 「交」接頭辞の杭番号）ごとに、
 基準線の2点と方向点（延長線の起点）を特定する。
 
 アルゴリズム:
 1. 交点杭を列挙
 2. 各交点杭の隣接ノードから同一直線ペアを検出 → 基準線
-   （隣接がマイナス付きなら、さらに先の非交点杭まで辿る）
+   （隣接が交点杭なら、さらに先の非交点杭まで辿る）
 3. 同一直線ペア以外の方向にある非交点杭 → 方向点（指示書の上部）
 4. 基準線の左右は方向点から見た位置関係で決定
 """
@@ -14,13 +14,18 @@
 import math
 from dataclasses import dataclass
 
-from src.dxf_parser import ParsedDXF
+from src.dxf_parser import ParsedDXF, extract_block_number
+
+
+def _is_intersection_number(number: str) -> bool:
+    """杭番号が交点杭かどうかを判定する（「-」or「交」接頭辞）"""
+    return number.startswith('-') or number.startswith('交')
 
 
 @dataclass
 class IntersectionResult:
     """交点計算指示書の1レコード"""
-    intersection_stake: str    # 交点杭番号（例: "-13.298"）
+    intersection_stake: str    # 交点杭番号（例: "-13.298", "交16.473"）
     baseline_point1: str       # 基準線の左（方向点から見て）
     baseline_point2: str       # 基準線の右（方向点から見て）
     extension_point1: str      # 方向点（指示書の上部）
@@ -28,7 +33,7 @@ class IntersectionResult:
 
 
 def generate_kouten(parsed: ParsedDXF,
-                    block_number: int | None = None) -> list[IntersectionResult]:
+                    block_number: int | str | None = None) -> list[IntersectionResult]:
     """交点計算指示書データを生成"""
     if parsed.graph is None:
         return []
@@ -39,9 +44,11 @@ def generate_kouten(parsed: ParsedDXF,
     # 交点杭をリストアップ（ブロック番号でフィルタ）
     intersection_stakes = [s for s in parsed.stakes if s.is_intersection]
     if block_number is not None:
-        prefix = f"-{block_number}."
-        intersection_stakes = [s for s in intersection_stakes
-                               if s.number and s.number.startswith(prefix)]
+        block_str = str(block_number)
+        intersection_stakes = [
+            s for s in intersection_stakes
+            if s.number and extract_block_number(s.number) == block_str
+        ]
 
     for stake in intersection_stakes:
         node = stake.number
@@ -129,7 +136,7 @@ def _resolve_non_intersection(
     parsed: ParsedDXF,
 ) -> str:
     """交点杭をグラフ上で同方向に辿り、最初の非交点杭まで解決する。"""
-    if not target_node or not target_node.startswith('-'):
+    if not target_node or not _is_intersection_number(target_node):
         return target_node
 
     graph = parsed.graph
@@ -140,7 +147,7 @@ def _resolve_non_intersection(
     next_node = target_node
     visited = {intersection_node}
 
-    while next_node.startswith('-'):
+    while _is_intersection_number(next_node):
         visited.add(next_node)
         candidates = [n for n in graph.neighbors(next_node) if n not in visited]
         if not candidates:

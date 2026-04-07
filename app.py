@@ -15,7 +15,7 @@ from pathlib import Path
 
 import streamlit as st
 
-from src.dxf_parser import parse_dxf
+from src.dxf_parser import parse_dxf, get_block_numbers
 from src.kessen_generator import generate_kessen
 from src.kouten_generator import generate_kouten
 from src.excel_writer import (
@@ -68,6 +68,7 @@ def process_dxf(dxf_path: str, parcels_filter, generate_kessen_flag: bool, gener
     # 診断情報
     named = parsed.get_stakes_with_numbers()
     intersections = [s for s in named if s.is_intersection]
+    blocks = get_block_numbers(parsed)
     results["diagnostics"] = {
         "stakes_total": len(parsed.stakes),
         "stakes_named": len(named),
@@ -77,6 +78,7 @@ def process_dxf(dxf_path: str, parcels_filter, generate_kessen_flag: bool, gener
         "parcels": len(parsed.parcels),
         "public_lands": len(parsed.public_lands),
         "entity_counts": parsed.entity_counts,
+        "block_numbers": blocks,
     }
 
     if generate_kessen_flag:
@@ -138,10 +140,7 @@ def page_dxf():
         with col2:
             gen_kouten = st.checkbox("交点計算指示書を生成", value=True, key="chk_kouten")
 
-        block_number = st.number_input(
-            "交点計算ブロック番号（0で全ブロック）",
-            min_value=0, value=0, step=1, key="num_block",
-        )
+        st.caption("交点計算指示書はブロック番号を自動検出し、ブロックごとにシートを分割します")
 
     # 「帳票を生成」ボタンが押されたら処理して結果を session_state に保存
     if uploaded and st.button("帳票を生成", type="primary", key="btn_generate"):
@@ -161,7 +160,7 @@ def page_dxf():
                     None,
                     gen_kessen,
                     gen_kouten,
-                    block_number if block_number > 0 else None,
+                    None,
                 )
 
             # ファイルパスではなくバイトデータとして保存（一時ファイル削除後も使える）
@@ -198,14 +197,18 @@ def page_dxf():
         diag = results.get("diagnostics", {})
         with st.expander("DXF解析結果（診断情報）", expanded=True):
             c1, c2, c3, c4 = st.columns(4)
-            c1.metric("杭(CIRCLE r=0.25)", diag.get("stakes_total", 0))
+            c1.metric("杭(CIRCLE)", diag.get("stakes_total", 0))
             c2.metric("杭番号あり", diag.get("stakes_named", 0))
             c3.metric("交点杭", diag.get("stakes_intersection", 0))
             c4.metric("地番", diag.get("parcels", 0))
             c5, c6, c7, c8 = st.columns(4)
-            c5.metric("境界線(2点)", diag.get("lines_total", 0))
+            c5.metric("境界線", diag.get("lines_total", 0))
             c6.metric("杭マッチ済み", diag.get("lines_matched", 0))
             c7.metric("公共用地", diag.get("public_lands", 0))
+
+            blocks = diag.get("block_numbers", [])
+            if blocks:
+                st.caption(f"検出ブロック番号: {', '.join(blocks)}")
 
             ec = diag.get("entity_counts", {})
             if ec:
@@ -213,9 +216,9 @@ def page_dxf():
                 st.json(ec)
 
             if diag.get("stakes_total", 0) == 0:
-                st.warning("**杭(CIRCLE)が検出されませんでした。** 杭は半径0.25のCIRCLEで描画する必要があります。")
+                st.warning("**杭(CIRCLE)が検出されませんでした。**")
             elif diag.get("stakes_named", 0) == 0:
-                st.warning("**杭番号(MTEXT)が検出されませんでした。**")
+                st.warning("**杭番号が検出されませんでした。**")
             elif diag.get("parcels", 0) == 0:
                 st.warning("**地番が検出されませんでした。**")
 

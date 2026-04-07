@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 
 import xlrd
@@ -151,6 +152,19 @@ def _write_kessen_sheet(
         if header.aza_name is not None:
             ws.write(3, 4, header.aza_name, _get_style(3, 4))
 
+    # ブロック番号を自動判定してA4に記入（headerに未指定の場合）
+    if (header is None or header.block_number is None) and result.stake_sequence:
+        # 杭番号の最頻ブロック番号を採用
+        from collections import Counter
+        block_counts = Counter()
+        for sn in result.stake_sequence:
+            b = _extract_block(sn)
+            if b is not None:
+                block_counts[b] += 1
+        if block_counts:
+            auto_block = block_counts.most_common(1)[0][0]
+            ws.write(3, 0, auto_block, _get_style(3, 0))
+
     # 地番をRow 3, Col 6に書き込み
     ws.write(3, 6, result.parcel_number, _get_style(3, 6))
 
@@ -181,7 +195,7 @@ def _write_kessen_sheet(
         text_style.pattern = style.pattern
         text_style.protection = style.protection
         text_style.num_format_str = '@'
-        ws.write(row, stake_col, stake, text_style)
+        ws.write(row, stake_col, _strip_stake_prefix(stake), text_style)
 
 
 def write_kessen_excel(
@@ -310,6 +324,69 @@ def _get_kouten_cell_positions(
     }
 
 
+def _strip_stake_prefix(number: str) -> str:
+    """杭番号をそのまま返す（接頭辞は除去しない）"""
+    return number
+
+
+def _extract_block(stake_number: str) -> str | None:
+    """杭番号からブロック番号を抽出する"""
+    cleaned = re.sub(r'^[-交既復計]', '', stake_number)
+    m = re.match(r'^(\d+)\.', cleaned)
+    return m.group(1) if m else None
+
+
+def _write_kouten_sheet(
+    ws,
+    results: list[IntersectionResult],
+    block_number: str | None = None,
+    header: KoutenHeaderInfo | None = None,
+) -> None:
+    """交点計算指示書の1シートにデータを書き込む。
+
+    Args:
+        ws: openpyxlワークシート
+        results: 交点計算結果のリスト（最大15件）
+        block_number: ブロック番号（A3セルに記入）
+        header: ヘッダー共通情報
+    """
+    # ヘッダー情報の書き込み（1-indexed）
+    if header is not None:
+        if header.district is not None:
+            ws.cell(row=2, column=14, value=header.district)
+        if header.recorder is not None:
+            ws.cell(row=2, column=44, value=header.recorder)
+        if header.oaza_name is not None:
+            ws.cell(row=3, column=22, value=header.oaza_name)
+
+    # ブロック番号をA3に記入（引数 > header の優先順）
+    effective_block = block_number
+    if effective_block is None and header is not None:
+        effective_block = header.block_number
+    if effective_block is not None:
+        ws.cell(row=3, column=1, value=_to_number(str(effective_block)))
+
+    # 各交点データを書き込み
+    for idx, result in enumerate(results):
+        if idx >= _KOUTEN_MAX_POINTS:
+            break
+        positions = _get_kouten_cell_positions(idx)
+
+        for field, value in [
+            ("extension_point1", _strip_stake_prefix(result.extension_point1)),
+            ("extension_point2", _strip_stake_prefix(result.extension_point2)),
+            ("baseline_point1", _strip_stake_prefix(result.baseline_point1)),
+            ("intersection_stake", _strip_stake_prefix(result.intersection_stake)),
+            ("baseline_point2", _strip_stake_prefix(result.baseline_point2)),
+        ]:
+            cell = ws.cell(
+                row=positions[field][0],
+                column=positions[field][1],
+                value=value if value else value,
+            )
+            cell.number_format = '@'
+
+
 def write_kouten_excel(
     results: list[IntersectionResult],
     template_path: str,
@@ -318,62 +395,59 @@ def write_kouten_excel(
 ) -> None:
     """交点計算指示書をExcelに出力する。
 
-    テンプレート(.xlsx)をコピーし、各交点のデータを
-    横3ブロック x 縦5段の配置で書き込む。
+    交点をブロック番号ごとにグループ分けし、ブロックごとに
+    シートを作成する。各シートは横3ブロック x 縦5段 = 最大15交点。
+    15交点を超える場合は同一ブロックで複数シートを作成する。
 
     Args:
-        results: 交点計算結果のリスト（最大15件）
+        results: 交点計算結果のリスト
         template_path: テンプレートファイルパス
         output_path: 出力ファイルパス
         header: ヘッダー共通情報（地区名、記入者等）
-
-    Raises:
-        ValueError: 交点数が最大数(15)を超えた場合
     """
     if not results:
         raise ValueError("結果データが空です")
 
-    if len(results) > _KOUTEN_MAX_POINTS:
-        raise ValueError(
-            f"交点数が最大数({_KOUTEN_MAX_POINTS})を超えています: {len(results)}"
-        )
-
     # 出力ディレクトリを作成
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
-    # テンプレートをコピーして開く
+    # ブロック番号ごとにグループ分け
+    from collections import OrderedDict
+    block_groups: OrderedDict[str, list[IntersectionResult]] = OrderedDict()
+    for r in results:
+        block = _extract_block(r.intersection_stake) or "0"
+        if block not in block_groups:
+            block_groups[block] = []
+        block_groups[block].append(r)
+
+    # テンプレートを開く
     wb = openpyxl.load_workbook(template_path)
-    ws = wb.active
+    template_ws = wb.active
 
-    # ヘッダー情報の書き込み（1-indexed）
-    if header is not None:
-        if header.district is not None:
-            ws.cell(row=2, column=14, value=header.district)
-        if header.recorder is not None:
-            ws.cell(row=2, column=44, value=header.recorder)
-        if header.block_number is not None:
-            ws.cell(row=3, column=1, value=_to_number(header.block_number))
-        if header.oaza_name is not None:
-            ws.cell(row=3, column=22, value=header.oaza_name)
+    is_first_sheet = True
+    for block_num, block_results in block_groups.items():
+        # 15交点ごとにページ分割
+        pages = (len(block_results) + _KOUTEN_MAX_POINTS - 1) // _KOUTEN_MAX_POINTS
 
-    # 各交点データを書き込み
-    # 杭番号は文字列のまま書き込む（"1.830"等の末尾ゼロ保持のため）
-    for idx, result in enumerate(results):
-        positions = _get_kouten_cell_positions(idx)
+        for page in range(pages):
+            page_results = block_results[
+                page * _KOUTEN_MAX_POINTS:(page + 1) * _KOUTEN_MAX_POINTS
+            ]
 
-        for field, value in [
-            ("extension_point1", result.extension_point1),
-            ("extension_point2", result.extension_point2),
-            ("baseline_point1", result.baseline_point1),
-            ("intersection_stake", result.intersection_stake),
-            ("baseline_point2", result.baseline_point2),
-        ]:
-            cell = ws.cell(
-                row=positions[field][0],
-                column=positions[field][1],
-                value=value,
-            )
-            cell.number_format = '@'
+            if is_first_sheet:
+                # 最初のシートはテンプレートシートをそのまま使う
+                ws = template_ws
+                suffix = f"_{page + 1}" if pages > 1 else ""
+                ws.title = f"ブロック{block_num}{suffix}"
+                is_first_sheet = False
+            else:
+                # 2シート目以降はテンプレートシートをコピー
+                suffix = f"_{page + 1}" if pages > 1 and page > 0 else ""
+                sheet_name = f"ブロック{block_num}{suffix}"
+                ws = wb.copy_worksheet(template_ws)
+                ws.title = sheet_name
+
+            _write_kouten_sheet(ws, page_results, block_number=block_num, header=header)
 
     # 保存
     wb.save(output_path)

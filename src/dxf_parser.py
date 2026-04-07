@@ -25,8 +25,10 @@ class Stake:
 
     @property
     def is_intersection(self) -> bool:
-        """交点杭（マイナス接頭辞）かどうか"""
-        return self.number is not None and self.number.startswith('-')
+        """交点杭（マイナス接頭辞 or 「交」接頭辞）かどうか"""
+        return self.number is not None and (
+            self.number.startswith('-') or self.number.startswith('交')
+        )
 
     def distance_to(self, other_x: float, other_y: float) -> float:
         return math.sqrt((self.x - other_x) ** 2 + (self.y - other_y) ** 2)
@@ -95,15 +97,20 @@ def clean_mtext(raw_text: str) -> str:
     return text.strip()
 
 
-def classify_text(raw_text: str) -> tuple[str, str]:
-    """MTEXTを分類する
+def classify_text(raw_text: str, is_plain: bool = False) -> tuple[str, str]:
+    """テキストエンティティを分類する
+
+    Args:
+        raw_text: テキスト内容
+        is_plain: True=TEXT(書式コードなし), False=MTEXT(書式コード除去が必要)
 
     Returns:
         (分類, クリーンテキスト)
-        分類: 'stake' | 'intersection_stake' | 'survey_code' |
+        分類: 'stake' | 'intersection_stake' | 'existing_stake' |
+              'restored_stake' | 'calculated_stake' | 'survey_code' |
               'parcel_number' | 'public_land' | 'land_use' | 'other'
     """
-    text = clean_mtext(raw_text)
+    text = raw_text.strip() if is_plain else clean_mtext(raw_text)
 
     # 複数行の場合は最初の行で判定
     if '\n' in text:
@@ -117,12 +124,28 @@ def classify_text(raw_text: str) -> tuple[str, str]:
     if re.match(r'^-\d+\.\d+$', text):
         return 'intersection_stake', text
 
+    # 交点杭番号（「交」接頭辞 + 小数）
+    if re.match(r'^交\d+\.\d+$', text):
+        return 'intersection_stake', text
+
+    # 既設杭（「既」接頭辞 + 小数）→ 通常杭として扱う
+    if re.match(r'^既\d+\.\d+$', text):
+        return 'existing_stake', text
+
+    # 復元杭（「復」接頭辞 + 小数）→ 通常杭として扱う
+    if re.match(r'^復\d+\.\d+$', text):
+        return 'restored_stake', text
+
+    # 計算杭（「計」接頭辞 + 小数）→ 通常杭として扱う
+    if re.match(r'^計\d+\.\d+$', text):
+        return 'calculated_stake', text
+
     # 通常の杭番号（小数）
     if re.match(r'^\d+\.\d+$', text):
         return 'stake', text
 
-    # 筆界点コード（P3P3-Fxxxx-x形式）
-    if text.startswith('P3P3-'):
+    # 筆界点コード（P3P3-Fxxxx-x形式 or R5.x.xxx形式）
+    if text.startswith('P3P3-') or re.match(r'^R\d+\.\d+\.\d+$', text):
         return 'survey_code', text
 
     # 地番（整数 or 整数-整数）
@@ -143,27 +166,90 @@ def classify_text(raw_text: str) -> tuple[str, str]:
     return 'other', text
 
 
+# === DXFフォーマット判定 ===
+
+# 背景図面レイヤー（大量のLINEを含み杭・境界線ではない）
+_BACKGROUND_LAYERS = {'_f-0_', '_f-8_', '_9-0_', '_9-1_'}
+
+# 杭として扱うテキスト分類
+_STAKE_CATEGORIES = {
+    'stake', 'intersection_stake', 'existing_stake',
+    'restored_stake', 'calculated_stake',
+}
+
+
+def _detect_format(doc) -> str:
+    """DXFファイルのフォーマットを判定する
+
+    Returns:
+        'mtext_format': AC1015以降、MTEXT/LWPOLYLINE形式（従来形式）
+        'text_format':  AC1009等、TEXT/LINE形式（JW-CAD形式）
+    """
+    msp = doc.modelspace()
+    has_mtext = any(e.dxftype() == 'MTEXT' for e in msp)
+    has_lwpolyline = any(e.dxftype() == 'LWPOLYLINE' for e in msp)
+
+    if has_mtext and has_lwpolyline:
+        return 'mtext_format'
+    return 'text_format'
+
+
+def _detect_stake_radius(doc) -> float:
+    """杭を示すCIRCLEの半径を自動検出する
+
+    杭レイヤー（背景以外）のCIRCLEで最頻の半径を返す。
+    """
+    from collections import Counter
+    msp = doc.modelspace()
+    radii = Counter()
+    for entity in msp.query('CIRCLE'):
+        if entity.dxf.layer not in _BACKGROUND_LAYERS:
+            radii[round(entity.dxf.radius, 2)] += 1
+
+    if not radii:
+        return 0.25  # デフォルト
+
+    return radii.most_common(1)[0][0]
+
+
+# === ブロック番号ユーティリティ ===
+
+def extract_block_number(stake_number: str) -> str | None:
+    """杭番号からブロック番号（整数部分）を抽出する
+
+    例: "14.235" → "14", "-13.298" → "13", "交16.473" → "16",
+        "既14.001" → "14", "復15.466" → "15", "計16.5002" → "16"
+    """
+    # 接頭辞を除去して数値部分を取得
+    cleaned = re.sub(r'^[-交既復計]', '', stake_number)
+    m = re.match(r'^(\d+)\.', cleaned)
+    if m:
+        return m.group(1)
+    return None
+
+
 # === DXF解析メイン ===
 
 def parse_dxf(filepath: str, stake_match_threshold: float = 5.0,
               line_match_threshold: float = 0.5) -> ParsedDXF:
     """DXFファイルを解析して構造化データを返す
 
+    AC1015形式（MTEXT/LWPOLYLINE）とAC1009形式（TEXT/LINE/Shift-JIS）の
+    両方に対応する。フォーマットはエンティティ構成から自動判定する。
+
     Args:
         filepath: DXFファイルパス
         stake_match_threshold: 杭番号テキスト↔CIRCLE中心のマッチング閾値
         line_match_threshold: 線分端点↔杭座標のマッチング閾値
     """
-    # JW-CAD等で生成されたDXFの破損にも対応するため recover を使う
-    try:
-        doc = ezdxf.readfile(filepath)
-    except ezdxf.DXFStructureError:
-        from ezdxf import recover
-        doc, _auditor = recover.readfile(filepath)
-    except Exception:
-        # TypeError等のパースエラーもrecoverで再試行
-        from ezdxf import recover
-        doc, _auditor = recover.readfile(filepath)
+    # まず通常読み込みを試行し、フォーマットを判定してから必要に応じて再読み込み
+    doc = _read_dxf(filepath)
+    fmt = _detect_format(doc)
+
+    # TEXT形式(AC1009)の場合、Shift-JISで再読み込み
+    if fmt == 'text_format':
+        doc = _read_dxf(filepath, encoding='shift_jis')
+
     msp = doc.modelspace()
     result = ParsedDXF()
 
@@ -174,31 +260,63 @@ def parse_dxf(filepath: str, stake_match_threshold: float = 5.0,
         entity_counts[t] = entity_counts.get(t, 0) + 1
     result.entity_counts = entity_counts
 
+    # フォーマットに応じた解析
+    if fmt == 'mtext_format':
+        _parse_mtext_format(msp, result, stake_match_threshold)
+    else:
+        _parse_text_format(doc, msp, result, stake_match_threshold)
+
+    # 線分端点 → 杭座標をマッチングし、グラフ構築
+    result.graph = _build_boundary_graph(result.stakes, result.lines,
+                                         line_match_threshold)
+
+    return result
+
+
+def _read_dxf(filepath: str, encoding: str | None = None):
+    """DXFファイルを読み込む（エラー時はrecoverで再試行）"""
+    try:
+        if encoding:
+            return ezdxf.readfile(filepath, encoding=encoding)
+        return ezdxf.readfile(filepath)
+    except ezdxf.DXFStructureError:
+        from ezdxf import recover
+        doc, _auditor = recover.readfile(filepath)
+        return doc
+    except Exception:
+        from ezdxf import recover
+        doc, _auditor = recover.readfile(filepath)
+        return doc
+
+
+def _parse_mtext_format(msp, result: ParsedDXF,
+                        stake_match_threshold: float) -> None:
+    """従来形式（AC1015/MTEXT/LWPOLYLINE）の解析"""
+
     # Step 1: 全CIRCLE(r=0.25)の中心座標を杭として抽出
-    stakes_by_pos = {}  # (round_x, round_y) -> Stake
+    stakes_by_pos = {}
     for entity in msp.query('CIRCLE'):
         if abs(entity.dxf.radius - 0.25) < 0.01:
             c = entity.dxf.center
             stake = Stake(x=c.x, y=c.y, layer=entity.dxf.layer)
-            # 重複排除（同一座標は1つにまとめる）
             key = (round(c.x, 3), round(c.y, 3))
             if key not in stakes_by_pos:
                 stakes_by_pos[key] = stake
     result.stakes = list(stakes_by_pos.values())
 
     # Step 2: 全MTEXTを抽出・分類
-    stake_texts = []     # (杭番号, x, y, layer)
-    parcel_texts = []    # (地番, x, y, layer)
-    land_use_texts = []  # (地目, x, y, layer)
+    stake_texts = []
+    parcel_texts = []
+    land_use_texts = []
     public_land_texts = []
     owner_texts = []
 
     for entity in msp.query('MTEXT'):
         raw = entity.text
-        category, text = classify_text(raw)
+        category, text = classify_text(raw, is_plain=False)
         pos = entity.dxf.insert
 
-        if category in ('stake', 'intersection_stake'):
+        if category in _STAKE_CATEGORIES:
             stake_texts.append((text, pos.x, pos.y, entity.dxf.layer))
         elif category == 'parcel_number':
             parcel_texts.append((text, pos.x, pos.y, entity.dxf.layer))
@@ -223,23 +341,7 @@ def parse_dxf(filepath: str, stake_match_threshold: float = 5.0,
     _match_stake_numbers(result.stakes, stake_texts, stake_match_threshold)
 
     # Step 4: 地番情報を構築
-    for pnum, px, py, player in parcel_texts:
-        parcel = ParcelInfo(number=pnum, x=px, y=py, layer=player)
-        # 最近傍の地目テキストをマッチング
-        best_dist = 15.0
-        for ltext, lx, ly, _ in land_use_texts:
-            d = math.sqrt((px - lx) ** 2 + (py - ly) ** 2)
-            if d < best_dist:
-                best_dist = d
-                parcel.land_use = ltext
-        # 最近傍の所有者名をマッチング
-        best_dist = 30.0
-        for otext, ox, oy in owner_texts:
-            d = math.sqrt((px - ox) ** 2 + (py - oy) ** 2)
-            if d < best_dist:
-                best_dist = d
-                parcel.owner = otext
-        result.parcels.append(parcel)
+    _build_parcel_info(result, parcel_texts, land_use_texts, owner_texts)
 
     # Step 5: LWPOLYLINE(2頂点)を境界線として抽出
     for entity in msp.query('LWPOLYLINE'):
@@ -252,11 +354,101 @@ def parse_dxf(filepath: str, stake_match_threshold: float = 5.0,
                 layer=entity.dxf.layer
             ))
 
-    # Step 6: 線分端点 → 杭座標をマッチングし、グラフ構築
-    result.graph = _build_boundary_graph(result.stakes, result.lines,
-                                         line_match_threshold)
 
-    return result
+def _parse_text_format(doc, msp, result: ParsedDXF,
+                       stake_match_threshold: float) -> None:
+    """JW-CAD形式（AC1009/TEXT/LINE/Shift-JIS）の解析"""
+
+    # Step 1: 背景レイヤー以外の全CIRCLEを杭候補として抽出
+    # JW-CAD形式では杭の半径が複数種類（848.72, 553.05, 854.92等）あるため
+    # 半径でフィルタせず全て含める
+    stake_radius = _detect_stake_radius(doc)
+
+    stakes_by_pos = {}
+    for entity in msp.query('CIRCLE'):
+        if entity.dxf.layer in _BACKGROUND_LAYERS:
+            continue
+        c = entity.dxf.center
+        stake = Stake(x=c.x, y=c.y, layer=entity.dxf.layer)
+        key = (round(c.x, 3), round(c.y, 3))
+        if key not in stakes_by_pos:
+            stakes_by_pos[key] = stake
+    result.stakes = list(stakes_by_pos.values())
+
+    # Step 2: 全TEXTを抽出・分類
+    stake_texts = []
+    parcel_texts = []
+    land_use_texts = []
+    public_land_texts = []
+
+    for entity in msp.query('TEXT'):
+        if entity.dxf.layer in _BACKGROUND_LAYERS:
+            continue
+        raw = entity.dxf.text
+        category, text = classify_text(raw, is_plain=True)
+        pos = entity.dxf.insert
+
+        if category in _STAKE_CATEGORIES:
+            stake_texts.append((text, pos.x, pos.y, entity.dxf.layer))
+        elif category == 'parcel_number':
+            parcel_texts.append((text, pos.x, pos.y, entity.dxf.layer))
+        elif category == 'land_use':
+            land_use_texts.append((text, pos.x, pos.y, entity.dxf.layer))
+        elif category == 'public_land':
+            public_land_texts.append(PublicLandInfo(
+                label=text, x=pos.x, y=pos.y, layer=entity.dxf.layer
+            ))
+
+    result.public_lands = public_land_texts
+
+    # Step 3: 杭番号テキスト → 最近傍CIRCLE中心にマッチング
+    # TEXT形式ではスケールが大きいため閾値を自動調整
+    adjusted_threshold = max(stake_match_threshold, stake_radius * 5)
+    _match_stake_numbers(result.stakes, stake_texts, adjusted_threshold)
+
+    # Step 4: 地番情報を構築
+    # TEXT形式では地目・所有者の距離閾値もスケール調整
+    scale_factor = stake_radius / 0.25 if stake_radius > 0 else 1.0
+    _build_parcel_info(result, parcel_texts, land_use_texts, [],
+                       land_use_threshold=15.0 * scale_factor,
+                       owner_threshold=30.0 * scale_factor)
+
+    # Step 5: LINE(2点)を境界線として抽出（背景レイヤー除外）
+    for entity in msp.query('LINE'):
+        if entity.dxf.layer in _BACKGROUND_LAYERS:
+            continue
+        start = entity.dxf.start
+        end = entity.dxf.end
+        result.lines.append(BoundaryLine(
+            x1=start.x, y1=start.y, x2=end.x, y2=end.y,
+            layer=entity.dxf.layer
+        ))
+
+
+def _build_parcel_info(result: ParsedDXF,
+                       parcel_texts: list,
+                       land_use_texts: list,
+                       owner_texts: list,
+                       land_use_threshold: float = 15.0,
+                       owner_threshold: float = 30.0) -> None:
+    """地番情報を構築（共通処理）"""
+    for pnum, px, py, player in parcel_texts:
+        parcel = ParcelInfo(number=pnum, x=px, y=py, layer=player)
+        # 最近傍の地目テキストをマッチング
+        best_dist = land_use_threshold
+        for ltext, lx, ly, _ in land_use_texts:
+            d = math.sqrt((px - lx) ** 2 + (py - ly) ** 2)
+            if d < best_dist:
+                best_dist = d
+                parcel.land_use = ltext
+        # 最近傍の所有者名をマッチング
+        best_dist = owner_threshold
+        for otext, ox, oy in owner_texts:
+            d = math.sqrt((px - ox) ** 2 + (py - oy) ** 2)
+            if d < best_dist:
+                best_dist = d
+                parcel.owner = otext
+        result.parcels.append(parcel)
 
 
 def _match_stake_numbers(stakes: list[Stake],
@@ -340,6 +532,16 @@ def _find_nearest_stake(stakes: list[Stake], x: float, y: float,
 
 # === ユーティリティ ===
 
+def get_block_numbers(parsed: ParsedDXF) -> list[str]:
+    """解析結果から全ブロック番号を取得する（ソート済み）"""
+    blocks = set()
+    for s in parsed.get_stakes_with_numbers():
+        b = extract_block_number(s.number)
+        if b is not None:
+            blocks.add(b)
+    return sorted(blocks, key=lambda x: int(x))
+
+
 def print_summary(parsed: ParsedDXF) -> None:
     """解析結果のサマリーを出力"""
     named = parsed.get_stakes_with_numbers()
@@ -347,14 +549,17 @@ def print_summary(parsed: ParsedDXF) -> None:
     intersections = [s for s in named if s.is_intersection]
 
     print(f"=== DXF解析結果 ===")
-    print(f"杭(CIRCLE r=0.25): {len(parsed.stakes)}個")
+    print(f"杭(CIRCLE): {len(parsed.stakes)}個")
     print(f"  番号あり: {len(named)}個")
     print(f"  番号なし: {len(unnamed)}個")
-    print(f"  交点杭(-付き): {len(intersections)}個")
-    print(f"境界線(LWPOLYLINE 2点): {len(parsed.lines)}本")
+    print(f"  交点杭: {len(intersections)}個")
+    print(f"境界線: {len(parsed.lines)}本")
     print(f"  杭マッチ済み: {sum(1 for l in parsed.lines if l.stake1_number and l.stake2_number)}本")
     print(f"地番: {len(parsed.parcels)}件")
     print(f"公共用地: {len(parsed.public_lands)}件")
+    blocks = get_block_numbers(parsed)
+    if blocks:
+        print(f"ブロック番号: {', '.join(blocks)}")
     if parsed.graph:
         print(f"グラフ: ノード{parsed.graph.number_of_nodes()}, "
               f"エッジ{parsed.graph.number_of_edges()}")

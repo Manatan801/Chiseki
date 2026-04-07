@@ -14,7 +14,7 @@ import argparse
 import os
 import sys
 
-from src.dxf_parser import parse_dxf, print_summary
+from src.dxf_parser import parse_dxf, print_summary, get_block_numbers
 from src.kessen_generator import generate_kessen
 from src.kouten_generator import generate_kouten
 from src.excel_writer import (
@@ -107,9 +107,9 @@ def main():
     # 交点計算指示書生成
     if not args.no_kouten:
         print("\n交点計算指示書を生成中...")
+        # ブロック番号指定がなければ全交点を取得（ブロック別シート分割はexcel_writerが行う）
         kouten_results = generate_kouten(parsed, block_number=args.block)
         if kouten_results:
-            # IntersectionResultの型変換（kouten_generator → excel_writer）
             excel_results = [
                 ExcelIntersectionResult(
                     intersection_stake=r.intersection_stake,
@@ -125,6 +125,13 @@ def main():
                 excel_results, args.kouten_template, output_path
             )
             print(f"  {len(kouten_results)}交点分の指示書を出力: {output_path}")
+            # ブロック別の内訳を表示
+            blocks = get_block_numbers(parsed)
+            for b in blocks:
+                block_count = sum(1 for r in kouten_results
+                                 if r.intersection_stake.lstrip('-交').startswith(f"{b}."))
+                if block_count > 0:
+                    print(f"    ブロック{b}: {block_count}交点")
             for r in kouten_results:
                 print(f"    交点={r.intersection_stake} "
                       f"基準線=({r.baseline_point1}, {r.baseline_point2}) "
