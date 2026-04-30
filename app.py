@@ -42,6 +42,7 @@ PROJECT_ROOT = Path(__file__).parent
 KESSEN_TEMPLATE = PROJECT_ROOT / "data" / "templates" / "結線指示票 - ブランク.xls"
 KOUTEN_TEMPLATE = PROJECT_ROOT / "data" / "templates" / "交点計算指示書 - ブランク.xlsx"
 UPLOADS_DIR = PROJECT_ROOT / "data" / "uploads"
+DXF_UPLOADS_DIR = PROJECT_ROOT / "data" / "uploads" / "dxf"
 
 
 def check_auth() -> bool:
@@ -139,7 +140,44 @@ def page_dxf():
     st.title("DXF帳票自動生成")
     st.markdown("DXFファイルをアップロードすると、**結線指示票**と**交点計算指示書**を自動生成します。")
 
+    # --- 保存済みDXFファイル表示 ---
+    saved_dxf = _list_saved_dxf()
+    if saved_dxf:
+        with st.expander(f"保存済みDXFファイル ({len(saved_dxf)}件)", expanded=False):
+            for p in saved_dxf:
+                col_name, col_size = st.columns([3, 1])
+                col_name.text(p.name)
+                col_size.text(_format_file_size(p.stat().st_size))
+
     uploaded = st.file_uploader("DXFファイルを選択", type=["dxf", "DXF"], key="dxf_upload")
+
+    # --- サーバー保存セクション ---
+    if uploaded:
+        st.divider()
+        st.subheader("サーバーに保存")
+        default_name = Path(uploaded.name).stem
+        save_name = st.text_input(
+            "保存ファイル名（変更可能）",
+            value=default_name,
+            key="dxf_save_name",
+        )
+        save_password = st.text_input(
+            "パスワードを入力してください",
+            type="password",
+            key="dxf_save_password",
+        )
+
+        if st.button("サーバーに保存", key="btn_save_dxf"):
+            if not save_name.strip():
+                st.warning("ファイル名を入力してください")
+            elif save_password != AUTH_PASSWORD:
+                st.error("パスワードが正しくありません")
+            else:
+                saved_path = _save_uploaded_dxf(uploaded, save_name.strip())
+                st.success(f"サーバーに保存しました: {saved_path.name}")
+                st.rerun()
+
+        st.divider()
 
     with st.expander("オプション設定"):
         col1, col2 = st.columns(2)
@@ -156,7 +194,7 @@ def page_dxf():
             st.warning("少なくとも1つの帳票を選択してください")
             return
 
-        # 一時ファイルに保存
+        # 一時ファイルに保存して処理
         with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp:
             tmp.write(uploaded.getvalue())
             tmp_path = tmp.name
@@ -272,6 +310,27 @@ def _format_file_size(num_bytes: int) -> str:
             return f"{num_bytes:.1f} {unit}"
         num_bytes /= 1024
     return f"{num_bytes:.1f} TB"
+
+
+def _save_uploaded_dxf(uploaded_file, save_name: str) -> Path:
+    """アップロードされたDXFファイルをディスクに永続保存する"""
+    DXF_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    # .dxf拡張子がなければ付与
+    if not save_name.lower().endswith(".dxf"):
+        save_name += ".dxf"
+    dest = DXF_UPLOADS_DIR / save_name
+    dest.write_bytes(uploaded_file.getvalue())
+    return dest
+
+
+def _list_saved_dxf() -> list[Path]:
+    """保存済みDXFファイルの一覧を返す"""
+    if not DXF_UPLOADS_DIR.exists():
+        return []
+    return sorted(
+        p for p in DXF_UPLOADS_DIR.iterdir()
+        if p.suffix.lower() == ".dxf"
+    )
 
 
 def _save_uploaded_access(uploaded_file, label: str) -> Path:
