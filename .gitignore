@@ -7,6 +7,10 @@ __pycache__/
 # Input data (contains personal information: owner names, parcel numbers)
 data/input/
 data/expected/
+*.mdb
+*.MDB
+*.accdb
+*.ACCDB
 
 # Generated output
 output/
@@ -19,6 +23,8 @@ output/
 Thumbs.db
 *.Zone.Identifier
 *.mshield
+*:Zone.Identifier
+*:mshield
 *.jw$
 
 # IDE

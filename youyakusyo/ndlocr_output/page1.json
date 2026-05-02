@@ -1,0 +1,112 @@
+{
+  "contents": [
+    [
+      {
+        "boundingBox": [
+          [
+            211,
+            65
+          ],
+          [
+            211,
+            134
+          ],
+          [
+            270,
+            65
+          ],
+          [
+            270,
+            134
+          ]
+        ],
+        "id": 0,
+        "isVertical": "true",
+        "text": "公",
+        "isTextline": "true",
+        "confidence": 0.446
+      },
+      {
+        "boundingBox": [
+          [
+            285,
+            68
+          ],
+          [
+            285,
+            138
+          ],
+          [
+            337,
+            68
+          ],
+          [
+            337,
+            138
+          ]
+        ],
+        "id": 1,
+        "isVertical": "true",
+        "text": "用",
+        "isTextline": "true",
+        "confidence": 0.323
+      },
+      {
+        "boundingBox": [
+          [
+            298,
+            70
+          ],
+          [
+            298,
+            133
+          ],
+          [
+            828,
+            70
+          ],
+          [
+            828,
+            133
+          ]
+        ],
+        "id": 2,
+        "isVertical": "true",
+        "text": "5登記事項要約書上地",
+        "isTextline": "true",
+        "confidence": 0.339
+      },
+      {
+        "boundingBox": [
+          [
+            363,
+            3349
+          ],
+          [
+            363,
+            3379
+          ],
+          [
+            1207,
+            3349
+          ],
+          [
+            1207,
+            3379
+          ]
+        ],
+        "id": 3,
+        "isVertical": "true",
+        "text": "*下線のあるものは抹消事項であることを示す。",
+        "isTextline": "true",
+        "confidence": 0.45
+      }
+    ]
+  ],
+  "imginfo": {
+    "img_width": 2482,
+    "img_height": 3511,
+    "img_path": "/home/maaatan/Chiseki/youyakusyo/test_images/page1.png",
+    "img_name": "page1.png"
+  }
+}

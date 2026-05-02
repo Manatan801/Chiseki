@@ -155,6 +155,156 @@ def _rotate_to_northwest(face: list[str], graph: nx.Graph) -> list[str]:
     return face[best_idx:] + face[:best_idx]
 
 
+def _normalize_faces(graph: nx.Graph) -> list[tuple[list[str], float]]:
+    """面探索結果をCW方向に統一し、面積昇順で返す。"""
+    raw_faces = _find_all_faces(graph)
+    all_faces: list[list[str]] = []
+    for face in raw_faces:
+        all_faces.extend(_split_face_at_duplicates(face))
+
+    cw_faces: list[tuple[list[str], float]] = []
+    for face in all_faces:
+        area = _signed_area(face, graph)
+        if area > 0:
+            face = list(reversed(face))
+            area = -area
+        if abs(area) > 0:
+            cw_faces.append((face, abs(area)))
+    cw_faces.sort(key=lambda x: x[1])
+    return cw_faces
+
+
+def _build_auxiliary_graph(parsed: ParsedDXF,
+                           line_match_threshold: float = 0.5) -> nx.Graph:
+    """番号なし杭も含めた、結線候補探索専用の補助グラフを作る。
+
+    parsed.graph は交点計算でも使うため変更しない。番号なし杭は
+    面の閉合判定にだけ使い、帳票出力時には除外する。
+    """
+    from scipy.spatial import cKDTree
+
+    graph = nx.Graph()
+    if not parsed.stakes:
+        return graph
+
+    node_ids: list[str] = []
+    points: list[tuple[float, float]] = []
+    for idx, stake in enumerate(parsed.stakes):
+        node = stake.number if stake.number else f"__UNNAMED_{idx}"
+        node_ids.append(node)
+        points.append((stake.x, stake.y))
+        graph.add_node(
+            node,
+            x=stake.x,
+            y=stake.y,
+            is_named=stake.number is not None,
+        )
+
+    tree = cKDTree(points)
+    for line in parsed.lines:
+        d1, i1 = tree.query((line.x1, line.y1))
+        d2, i2 = tree.query((line.x2, line.y2))
+        if (
+            d1 < line_match_threshold and
+            d2 < line_match_threshold and
+            i1 != i2
+        ):
+            graph.add_edge(node_ids[i1], node_ids[i2])
+
+    return graph
+
+
+def _named_sequence_from_aux_face(face: list[str],
+                                  graph: nx.Graph) -> list[str] | None:
+    """補助面から帳票に出せる番号付き杭の閉合列を作る。"""
+    rotated = _rotate_to_northwest(face, graph)
+    sequence: list[str] = []
+    for node in rotated:
+        if not graph.nodes[node].get('is_named'):
+            continue
+        if sequence and sequence[-1] == node:
+            continue
+        sequence.append(node)
+
+    if len(sequence) < 3:
+        return None
+    if len(set(sequence)) != len(sequence):
+        return None
+
+    return sequence + [sequence[0]]
+
+
+def _generate_auxiliary_kessen(parsed: ParsedDXF,
+                               parcels,
+                               existing_results: list[KessenResult],
+                               existing_sequences: set[tuple[str, ...]]
+                               ) -> list[KessenResult]:
+    """番号なし杭で閉じる筆のうち、安全な単独地番だけを追加生成する。"""
+    existing_parcel_numbers = {
+        r.parcel_number for r in existing_results
+        if r.parcel_number != '地番不明'
+    }
+    remaining = [
+        p for p in parcels
+        if p.number not in existing_parcel_numbers
+    ]
+    if not remaining:
+        return []
+
+    aux_graph = _build_auxiliary_graph(parsed)
+    if aux_graph.number_of_nodes() == 0:
+        return []
+
+    cw_faces = _normalize_faces(aux_graph)
+    if not cw_faces:
+        return []
+
+    face_candidates: dict[int, list[int]] = {}
+    for pi, parcel in enumerate(remaining):
+        for fi, (face, _area) in enumerate(cw_faces):
+            polygon = [
+                (aux_graph.nodes[n]['x'], aux_graph.nodes[n]['y'])
+                for n in face
+            ]
+            if _point_in_polygon(parcel.x, parcel.y, polygon):
+                face_candidates.setdefault(fi, []).append(pi)
+                break
+
+    additions: list[KessenResult] = []
+    used_parcels: set[str] = set()
+
+    for fi, candidate_indices in face_candidates.items():
+        unique_numbers = {
+            remaining[pi].number for pi in candidate_indices
+        }
+        if len(unique_numbers) != 1:
+            continue
+
+        parcel = remaining[candidate_indices[0]]
+        if parcel.number in used_parcels:
+            continue
+
+        face = cw_faces[fi][0]
+        sequence = _named_sequence_from_aux_face(face, aux_graph)
+        if sequence is None:
+            continue
+
+        seq_key = tuple(sequence)
+        if seq_key in existing_sequences:
+            continue
+
+        additions.append(KessenResult(
+            parcel_number=parcel.number,
+            stake_sequence=sequence,
+            land_use=parcel.land_use,
+            owner=parcel.owner,
+        ))
+        used_parcels.add(parcel.number)
+        existing_sequences.add(seq_key)
+
+    return additions
+
+
 # === メイン API ===
 
 def generate_kessen(parsed: ParsedDXF,
@@ -177,22 +327,8 @@ def generate_kessen(parsed: ParsedDXF,
         target_set = set(target_parcels)
         parcels = [p for p in parcels if p.number in target_set]
 
-    # 1. 面探索 + 重複ノード分割
-    raw_faces = _find_all_faces(graph)
-    all_faces: list[list[str]] = []
-    for face in raw_faces:
-        all_faces.extend(_split_face_at_duplicates(face))
-
-    # 2. CW方向に統一 + 面積でソート（小さい面優先）
-    cw_faces: list[tuple[list[str], float]] = []
-    for face in all_faces:
-        area = _signed_area(face, graph)
-        if area > 0:
-            face = list(reversed(face))
-            area = -area
-        if abs(area) > 0:
-            cw_faces.append((face, abs(area)))
-    cw_faces.sort(key=lambda x: x[1])
+    # 1-2. 面探索 + 重複ノード分割 + CW方向に統一
+    cw_faces = _normalize_faces(graph)
 
     # 3. 各面の重心を計算
     face_centroids: list[tuple[float, float]] = []
@@ -219,6 +355,7 @@ def generate_kessen(parsed: ParsedDXF,
     # 各面で重心に最も近い地番を採用（競合解決）
     matched_face_indices: set[int] = set()
     results: list[KessenResult] = []
+    seen_sequences: set[tuple[str, ...]] = set()
 
     for fi, candidates in face_candidates.items():
         # 重心に最も近い地番が勝ち
@@ -235,15 +372,21 @@ def generate_kessen(parsed: ParsedDXF,
             land_use=parcel.land_use,
             owner=parcel.owner,
         ))
+        seen_sequences.add(tuple(sequence))
         matched_face_indices.add(fi)
+
+    # 5. 番号なし杭で閉じる筆を、未出力かつ単独地番の安全な候補だけ追加
+    results.extend(_generate_auxiliary_kessen(
+        parsed,
+        parcels,
+        results,
+        seen_sequences,
+    ))
 
     # 6. どの地番にもマッチしなかった面 → 「地番不明」として生成
     #    （引き出し線で地番テキストが面の外にある狭い区画）
     if cw_faces:
         max_area = max(a for _, a in cw_faces)
-        seen_sequences: set[tuple[str, ...]] = set()
-        for r in results:
-            seen_sequences.add(tuple(r.stake_sequence))
 
         for fi, (face, area) in enumerate(cw_faces):
             if fi in matched_face_indices:

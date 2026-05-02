@@ -261,11 +261,52 @@ proxy_send_timeout 600s;
 - DXFファイル本体はサーバーに保存しない
 - 生成されたExcelは**セッションメモリ上**のみに保持（再起動で消える）
 
+### セキュリティヘッダー
+
+nginx設定（`/etc/nginx/sites-enabled/gomi-maru`）に以下のヘッダーを設定済み：
+
+| ヘッダー | 目的 |
+|----------|------|
+| `Strict-Transport-Security` | HTTPS接続を強制（HSTS、1年間有効） |
+| `X-Frame-Options` | クリックジャッキング防止 |
+| `X-Content-Type-Options` | MIMEスニッフィング防止 |
+| `Referrer-Policy` | リファラー情報の制御 |
+| `Permissions-Policy` | 不要なブラウザ機能の無効化 |
+| `Content-Security-Policy` | XSS・インジェクション防止 |
+
+nginx設定を変更した場合は、必ず以下の手順で反映：
+
+```bash
+sudo nginx -t              # 設定テスト
+sudo systemctl reload nginx  # 反映（ダウンタイムなし）
+```
+
+### SSL証明書の自動更新確認
+
+Let's Encrypt証明書は90日ごとに更新が必要です。certbotのタイマーが正常に動作しているか定期的に確認してください：
+
+```bash
+# certbotタイマーの状態確認
+sudo systemctl status certbot.timer
+
+# 更新テスト（ドライラン）
+sudo certbot renew --dry-run
+
+# 証明書の有効期限確認
+sudo certbot certificates
+```
+
+タイマーが無効の場合は有効化：
+```bash
+sudo systemctl enable --now certbot.timer
+```
+
 ### 推奨運用
 
 - パスワードは定期変更（3〜6ヶ月ごと）
 - OSのセキュリティアップデート: `sudo apt update && sudo apt upgrade`
 - バックアップ: `/opt/chiseki` はGitで管理されているのでclone可能
+- SSL証明書の自動更新確認: 月1回 `sudo certbot renew --dry-run` を実行
 
 ---
 
