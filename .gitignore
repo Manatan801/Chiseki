@@ -1,5 +1,7 @@
 # Python
 venv/
+.venv/
+**/.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -7,13 +9,30 @@ __pycache__/
 # Input data (contains personal information: owner names, parcel numbers)
 data/input/
 data/expected/
+ACCESS_sabun/
 *.mdb
 *.MDB
 *.accdb
 *.ACCDB
+*.pdf
+*.PDF
+*.csv
+*.CSV
+*.dxf
+*.DXF
 
 # Generated output
 output/
+**/output/
+**/output_v2/pages/
+**/output_v2/*.csv
+
+# Local distribution bundles
+*配布*/
+*配布用*/
+*完成版*/
+DXF帳票ツール_Windows*/
+BM_CSV差分ツール_Windows*/
 
 # Work notes
 要改善/
