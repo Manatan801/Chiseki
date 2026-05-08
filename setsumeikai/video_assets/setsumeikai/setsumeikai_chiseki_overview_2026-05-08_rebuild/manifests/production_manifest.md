@@ -1,0 +1,30 @@
+# Production Manifest
+
+- video_id: setsumeikai_chiseki_overview
+- status: final_exported_v2_pending_human_review
+- 対象: 地籍調査 地元説明会動画
+- 参照スライド素材: 7ファイル、全12セグメント
+- TTS本文: /home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/manifests/setsumeikai_chiseki_overview_tts_input_2026-05-08.txt
+- 採用音声: /home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/audio/tts_final/setsumeikai_chiseki_overview_tts_sulafat_segment_sync_review_2026-05-08.wav
+- 採用BGM/イントロ/アウトロ: なし
+- テロップ: なし
+- スライド書き出し物: /home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/slides/exports
+- 同期CSV: /home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/manifests/setsumeikai_chiseki_overview_slide_sync_review_2026-05-08.csv
+- 同期JSON: /home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/manifests/setsumeikai_chiseki_overview_slide_sync_review_2026-05-08.json
+- 仮動画保存先: setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/build/setsumeikai_chiseki_overview_slide6_retake_review_2026-05-08.mp4
+- 最終mp4保存先: /mnt/f/udemy_videos/setsumeikai_chiseki_overview_2026-05-08_slide6_retake.mp4
+- 尺: 586.24秒
+- 音声尺: 586.24秒
+- 同期方式: スライド別wav実尺 + 読み出し前無音 + 末尾保持
+- 読み出し前無音: スライド1は3.0秒、スライド2以降は2.0秒
+- 末尾保持: 0.5秒
+- 確認工程:
+  - 資料確認: ページ数、順番、原稿対応、欠落、不一致を確認
+  - スライド確認: PDF書き出しPNGを目視確認
+  - TTS本文確認: 読み原稿をスライド単位で確認
+  - 音声確認: 各スライドwavを聴感確認し、承認済みだけtts_finalに置く
+  - 同期確認: 実尺同期CSVで切替、無音、読み出し開始位置を確認
+  - 仮動画確認: スライド切替、音声、テロップ被りを確認
+  - 最終書き出し: 承認後のみ最終mp4を保存
+- 確認日: 2026-05-08
+- 未完了項目: 目視・聴感による最終レビュー

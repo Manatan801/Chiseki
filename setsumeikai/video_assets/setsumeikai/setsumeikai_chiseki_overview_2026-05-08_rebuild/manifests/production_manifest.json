@@ -1,0 +1,82 @@
+{
+  "video_id": "setsumeikai_chiseki_overview",
+  "status": "assets_ready",
+  "date": "2026-05-08",
+  "asset_dir": "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild",
+  "source_dir": "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source",
+  "slide_count": 12,
+  "slide_sources": [
+    "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/slides_pdf/01-05　地元説明会　P01-05.pdf",
+    "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/slides_pdf/06　地元説明会　P06　修正版.png",
+    "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/slides_pdf/07　地元説明会　P07　修正版.png",
+    "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/slides_pdf/08　地元説明会　P08　修正版.png",
+    "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/slides_pdf/09　地元説明会　P09.pdf",
+    "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/slides_pdf/10　地元説明会　P10.png",
+    "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/slides_pdf/11-12　地元説明会　P11-12.pdf"
+  ],
+  "narration_docx": "/home/maaatan/Chiseki/setsumeikai/video_assets/setsumeikai/setsumeikai_chiseki_overview_2026-05-08_rebuild/source/narration/AI読み原稿（5.8修正）.docx",
+  "telop_docx": null,
+  "telops_enabled": false,
+  "segments": [
+    {
+      "slide": 1,
+      "title": "ちせきちょうさとは",
+      "chars": 335
+    },
+    {
+      "slide": 2,
+      "title": "なぜいま、ちょうさがひつようなのか",
+      "chars": 343
+    },
+    {
+      "slide": 3,
+      "title": "ちせきちょうさとは、とちのこせき、をつくること",
+      "chars": 235
+    },
+    {
+      "slide": 4,
+      "title": "ちせきちょうさがうみだす、よっつのおおきなメリット",
+      "chars": 507
+    },
+    {
+      "slide": 5,
+      "title": "かんりょうまでやくさんねん。みなさまのさぎょうは、よんステップ、のみ",
+      "chars": 178
+    },
+    {
+      "slide": 6,
+      "title": "ステップいち、および、に、しょるいていしゅつと、ちょうきょうぶつ、のかくにん",
+      "chars": 298
+    },
+    {
+      "slide": 7,
+      "title": "ステップさん、いっぴつちちょうさのげんちたちあい",
+      "chars": 340
+    },
+    {
+      "slide": 8,
+      "title": "ちゅうい、きょうかいがきまらない、ひっかいみていち、のリスク",
+      "chars": 377
+    },
+    {
+      "slide": 9,
+      "title": "ステップよん、せいかのえつらん、さいしゅうチェック",
+      "chars": 201
+    },
+    {
+      "slide": 10,
+      "title": "ちょうさにあたっての、よっつのおねがいとちゅういじこう",
+      "chars": 536
+    },
+    {
+      "slide": 11,
+      "title": "よくあるごしつもん、エフエーキュー",
+      "chars": 305
+    },
+    {
+      "slide": 12,
+      "title": "さいごに、いっしょうにいちどのきかいをごかつようください",
+      "chars": 386
+    }
+  ]
+}

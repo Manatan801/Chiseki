@@ -16,6 +16,7 @@ ACCESS_sabun/
 *.ACCDB
 *.pdf
 *.PDF
+!setsumeikai/video_assets/**/source/slides_pdf/*.pdf
 *.csv
 *.CSV
 *.dxf
@@ -26,6 +27,10 @@ output/
 **/output/
 **/output_v2/pages/
 **/output_v2/*.csv
+setsumeikai/.deps/
+setsumeikai/**/__pycache__/
+setsumeikai/video_assets/**/audio/
+setsumeikai/video_assets/**/build/
 
 # Local distribution bundles
 *配布*/
