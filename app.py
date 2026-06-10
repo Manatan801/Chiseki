@@ -14,6 +14,10 @@ import os
 import tempfile
 from pathlib import Path
 
+from streamlit_folium import st_folium
+import folium
+from folium.plugins import Draw
+
 import pandas as pd
 import streamlit as st
 
@@ -424,6 +428,133 @@ def _build_compare_excel(result, label_a: str, label_b: str) -> bytes:
     return buf.getvalue()
 
 
+def page_terrain():
+    """傾斜区分分析ページ"""
+    from src.terrain_analysis import merge_dem_tiles, compute_polygon_stats, SLOPE_CLASSES
+    import matplotlib.pyplot as plt
+    import io as _io
+
+    st.title("🗾 傾斜区分分析")
+    st.markdown(
+        "調査区域を地図上に描画すると、国土地理院の標高データから"
+        "**傾斜区分割合**（平坦地〜急峻地）を自動算出します。"
+    )
+
+    st.info(
+        "📌 地図上の「ポリゴン描画ツール」（左側ツールバーの五角形アイコン）で"
+        "調査区域を手書きしてください。描画後「**傾斜を解析する**」ボタンを押します。"
+    )
+
+    # --- 地図 ---
+    m = folium.Map(
+        location=[36.0, 137.5],
+        zoom_start=12,
+        tiles="https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png",
+        attr="国土地理院",
+    )
+    Draw(
+        export=False,
+        draw_options={
+            "polyline": False,
+            "rectangle": True,
+            "polygon": True,
+            "circle": False,
+            "marker": False,
+            "circlemarker": False,
+        },
+        edit_options={"edit": True, "remove": True},
+    ).add_to(m)
+
+    map_data = st_folium(m, width=700, height=500, key="terrain_map")
+
+    # 描画済みポリゴンの取得
+    drawn = None
+    if map_data and map_data.get("all_drawings"):
+        for feature in map_data["all_drawings"]:
+            geom = feature.get("geometry", {})
+            if geom.get("type") == "Polygon":
+                drawn = geom["coordinates"][0]
+                break
+
+    if drawn:
+        st.success(f"ポリゴンを検出しました（{len(drawn) - 1} 頂点）")
+    else:
+        st.warning("地図上にポリゴンを描画してください")
+        return
+
+    if not st.button("傾斜を解析する", type="primary"):
+        return
+
+    with st.spinner("国土地理院から標高データを取得中..."):
+        try:
+            lons = [c[0] for c in drawn]
+            lats = [c[1] for c in drawn]
+            bbox_area_deg2 = (max(lats) - min(lats)) * (max(lons) - min(lons))
+            if bbox_area_deg2 > 0.25:
+                st.error(
+                    "選択エリアが広すぎます（約0.25°²以上）。"
+                    "取得タイル数が多くなりすぎるため、より狭い範囲を選択してください。"
+                )
+                return
+
+            dem, bounds = merge_dem_tiles(
+                lat_min=min(lats),
+                lon_min=min(lons),
+                lat_max=max(lats),
+                lon_max=max(lons),
+            )
+        except Exception as e:
+            st.error(f"標高データの取得に失敗しました: {e}")
+            return
+
+    with st.spinner("傾斜を計算中..."):
+        stats = compute_polygon_stats(dem, bounds, drawn)
+
+    # --- 結果テーブル ---
+    st.subheader("傾斜区分別 面積・割合")
+    df = pd.DataFrame(stats)
+    df.columns = ["傾斜区分", "面積 (m²)", "割合 (%)", "色"]
+    df["面積 (ha)"] = (df["面積 (m²)"] / 10000).round(3)
+    df = df[["傾斜区分", "面積 (ha)", "面積 (m²)", "割合 (%)"]]
+    st.dataframe(df, use_container_width=True)
+
+    # --- 円グラフ ---
+    st.subheader("傾斜区分 割合グラフ")
+    labels = [s["name"] for s in stats if s["percent"] > 0]
+    sizes = [s["percent"] for s in stats if s["percent"] > 0]
+    colors = [s["color"] for s in stats if s["percent"] > 0]
+
+    if sizes:
+        fig, ax = plt.subplots(figsize=(7, 4))
+        ax.pie(
+            sizes,
+            labels=labels,
+            colors=colors,
+            autopct="%1.1f%%",
+            startangle=90,
+            pctdistance=0.8,
+        )
+        ax.axis("equal")
+        ax.set_title("傾斜区分割合", fontsize=14)
+        buf = _io.BytesIO()
+        plt.tight_layout()
+        plt.savefig(buf, format="png", dpi=120, bbox_inches="tight")
+        buf.seek(0)
+        st.image(buf, use_container_width=True)
+        plt.close(fig)
+    else:
+        st.warning("有効なピクセルが見つかりませんでした。対象エリアを確認してください。")
+
+    # --- メタ情報 ---
+    north, south, west, east = bounds
+    total_area_ha = sum(s["area_m2"] for s in stats) / 10000
+    st.caption(
+        f"解析エリア: N{north:.4f} S{south:.4f} W{west:.4f} E{east:.4f} | "
+        f"DEM解像度: 5m or 10m (国土地理院) | "
+        f"集計面積: {total_area_ha:.2f} ha"
+    )
+
+
 def page_access_compare():
     """土地データ照合ページ（Accessファイル差分検出）"""
     st.title("土地データ照合")
@@ -584,13 +715,18 @@ def main():
     st.divider()
 
     # ===== タブで機能切り替え =====
-    tab_dxf, tab_compare = st.tabs(["📄 DXF帳票生成", "🔍 土地データ照合"])
+    tab_dxf, tab_compare, tab_terrain = st.tabs([
+        "📄 DXF帳票生成", "🔍 土地データ照合", "🗾 傾斜区分分析"
+    ])
 
     with tab_dxf:
         page_dxf()
 
     with tab_compare:
         page_access_compare()
+
+    with tab_terrain:
+        page_terrain()
 
 
 if __name__ == "__main__":
