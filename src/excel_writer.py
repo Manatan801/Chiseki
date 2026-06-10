@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
+from copy import copy
 from dataclasses import dataclass
 
 import xlrd
@@ -76,6 +78,92 @@ def _get_style_list(rb: xlrd.Book) -> list[xlwt.XFStyle]:
     return writer.style_list
 
 
+def _set_xlwt_attr(obj, attr: str, value) -> None:
+    """xlwt objects expose some settings as setters and some as attributes."""
+    setter = getattr(obj, f"set_{attr}", None)
+    try:
+        if setter is not None:
+            setter(value)
+        elif hasattr(obj, attr):
+            setattr(obj, attr, value)
+    except Exception:
+        # Not every BIFF setting exposed by xlrd can be written by xlwt.
+        pass
+
+
+def _copy_xls_sheet_layout(
+    rs: xlrd.sheet.Sheet,
+    ws: xlwt.Worksheet,
+    style_list: list[xlwt.XFStyle],
+) -> None:
+    """テンプレートシートの行高・列幅・表示設定をコピーする。"""
+    for col_idx, colinfo in rs.colinfo_map.items():
+        col = ws.col(col_idx)
+        col.width = colinfo.width
+        col.hidden = bool(colinfo.hidden)
+        col.level = colinfo.outline_level
+        col.collapse = bool(colinfo.collapsed)
+        if 0 <= colinfo.xf_index < len(style_list):
+            col.set_style(style_list[colinfo.xf_index])
+
+    for row_idx, rowinfo in rs.rowinfo_map.items():
+        row = ws.row(row_idx)
+        row.height = rowinfo.height
+        row.height_mismatch = bool(rowinfo.height_mismatch)
+        row.hidden = bool(rowinfo.hidden)
+        row.level = rowinfo.outline_level
+        row.collapse = bool(rowinfo.outline_group_starts_ends)
+        row.has_default_height = bool(rowinfo.has_default_height)
+        row.space_above = bool(rowinfo.additional_space_above)
+        row.space_below = bool(rowinfo.additional_space_below)
+        if (
+            rowinfo.has_default_xf_index
+            and 0 <= rowinfo.xf_index < len(style_list)
+        ):
+            row.set_style(style_list[rowinfo.xf_index])
+
+    default_mappings = [
+        ("default_row_height", "row_default_height"),
+        ("default_row_height_mismatch", "row_default_height_mismatch"),
+        ("default_row_hidden", "row_default_hidden"),
+        ("default_additional_space_above", "row_default_space_above"),
+        ("default_additional_space_below", "row_default_space_below"),
+        ("defcolwidth", "col_default_width"),
+    ]
+    for source_attr, target_attr in default_mappings:
+        if hasattr(rs, source_attr):
+            _set_xlwt_attr(ws, target_attr, getattr(rs, source_attr))
+
+    sheet_mappings = [
+        ("visibility", "sheet_visible"),
+        ("show_formulas", "show_formulas"),
+        ("show_grid_lines", "show_grid"),
+        ("show_sheet_headers", "show_headers"),
+        ("panes_are_frozen", "panes_frozen"),
+        ("remove_splits_if_pane_freeze_is_removed", "remove_splits"),
+        ("horz_split_pos", "horz_split_pos"),
+        ("vert_split_pos", "vert_split_pos"),
+        ("horz_split_first_visible", "horz_split_first_visible"),
+        ("vert_split_first_visible", "vert_split_first_visible"),
+        ("first_visible_rowx", "first_visible_row"),
+        ("first_visible_colx", "first_visible_col"),
+        ("automatic_grid_line_colour", "auto_colour_grid"),
+        ("gridline_colour_index", "grid_colour"),
+        ("columns_from_right_to_left", "cols_right_to_left"),
+        ("show_outline_symbols", "show_outline"),
+        ("cached_normal_view_mag_factor", "normal_magn"),
+        ("cached_page_break_preview_mag_factor", "preview_magn"),
+        ("scl_mag_factor", "scl_magn"),
+        ("show_in_page_break_preview", "page_preview"),
+        ("sheet_selected", "selected"),
+        ("horizontal_page_breaks", "horz_page_breaks"),
+        ("vertical_page_breaks", "vert_page_breaks"),
+    ]
+    for source_attr, target_attr in sheet_mappings:
+        if hasattr(rs, source_attr):
+            _set_xlwt_attr(ws, target_attr, getattr(rs, source_attr))
+
+
 def _copy_template_sheet(
     rb: xlrd.Book,
     wb: xlwt.Workbook,
@@ -95,6 +183,7 @@ def _copy_template_sheet(
     """
     rs = rb.sheet_by_index(0)
     ws = wb.add_sheet(sheet_name, cell_overwrite_ok=True)
+    _copy_xls_sheet_layout(rs, ws, style_list)
 
     # 全セルの値とスタイルをコピー
     for row_idx in range(rs.nrows):
@@ -111,6 +200,28 @@ def _copy_template_sheet(
         ws.merge(rlo, rhi - 1, clo, chi - 1)
 
     return ws
+
+
+def _parcel_sort_tuple(parcel_number: str) -> tuple[int, ...] | None:
+    """地番を自然順ソート用の数値タプルに変換する。"""
+    text = unicodedata.normalize("NFKC", str(parcel_number).strip())
+    if not text or not text[0].isdigit():
+        return None
+    if not re.fullmatch(r"\d+(?:[-番の]+\d+)*", text):
+        return None
+    return tuple(int(part) for part in re.findall(r"\d+", text))
+
+
+def _sort_kessen_results(results: list[KessenResult]) -> list[KessenResult]:
+    """読み取れた地番を若い順にし、不明地番は末尾で元順を保つ。"""
+    def sort_key(item: tuple[int, KessenResult]):
+        index, result = item
+        parcel_key = _parcel_sort_tuple(result.parcel_number)
+        if parcel_key is None:
+            return (1, (), index)
+        return (0, parcel_key, index)
+
+    return [result for _, result in sorted(enumerate(results), key=sort_key)]
 
 
 def _write_kessen_sheet(
@@ -224,6 +335,7 @@ def write_kessen_excel(
     # テンプレートを読み込み
     rb = xlrd.open_workbook(template_path, formatting_info=True)
     style_list = _get_style_list(rb)
+    sorted_results = _sort_kessen_results(results)
 
     # xlutils.copyでワークブックをコピー（テンプレートシートの書式保持）
     wb = xlutils_copy(rb)
@@ -257,8 +369,8 @@ def write_kessen_excel(
             )
 
     used_names: dict[str, int] = {}
-    _write_result_sheets(results[0], is_first=True)
-    for result in results[1:]:
+    _write_result_sheets(sorted_results[0], is_first=True)
+    for result in sorted_results[1:]:
         _write_result_sheets(result, is_first=False)
 
     # 保存
@@ -387,6 +499,53 @@ def _write_kouten_sheet(
             cell.number_format = '@'
 
 
+def _copy_openpyxl_attr(source_ws, target_ws, attr: str) -> None:
+    try:
+        setattr(target_ws, attr, copy(getattr(source_ws, attr)))
+    except Exception:
+        pass
+
+
+def _copy_openpyxl_sheet_layout(source_ws, target_ws) -> None:
+    """copy_worksheetで落ちやすいページ/印刷/表示設定を補完する。"""
+    for attr in (
+        "sheet_format",
+        "sheet_properties",
+        "page_margins",
+        "page_setup",
+        "print_options",
+        "views",
+        "row_breaks",
+        "col_breaks",
+    ):
+        _copy_openpyxl_attr(source_ws, target_ws, attr)
+
+    target_ws.freeze_panes = source_ws.freeze_panes
+    target_ws.sheet_state = source_ws.sheet_state
+    target_ws.sheet_view.showGridLines = source_ws.sheet_view.showGridLines
+    target_ws.sheet_view.showRowColHeaders = (
+        source_ws.sheet_view.showRowColHeaders
+    )
+    target_ws.sheet_view.zoomScale = source_ws.sheet_view.zoomScale
+    target_ws.sheet_view.zoomScaleNormal = source_ws.sheet_view.zoomScaleNormal
+
+    target_ws.column_dimensions.clear()
+    for key, dimension in source_ws.column_dimensions.items():
+        target_ws.column_dimensions[key] = copy(dimension)
+        target_ws.column_dimensions[key].worksheet = target_ws
+
+    target_ws.row_dimensions.clear()
+    for key, dimension in source_ws.row_dimensions.items():
+        target_ws.row_dimensions[key] = copy(dimension)
+        target_ws.row_dimensions[key].worksheet = target_ws
+
+    target_ws.auto_filter.ref = source_ws.auto_filter.ref
+    target_ws.print_title_rows = source_ws.print_title_rows
+    target_ws.print_title_cols = source_ws.print_title_cols
+    if source_ws.print_area:
+        target_ws.print_area = source_ws.print_area
+
+
 def write_kouten_excel(
     results: list[IntersectionResult],
     template_path: str,
@@ -424,7 +583,6 @@ def write_kouten_excel(
     wb = openpyxl.load_workbook(template_path)
     template_ws = wb.active
 
-    is_first_sheet = True
     for block_num, block_results in block_groups.items():
         # 15交点ごとにページ分割
         pages = (len(block_results) + _KOUTEN_MAX_POINTS - 1) // _KOUTEN_MAX_POINTS
@@ -434,20 +592,15 @@ def write_kouten_excel(
                 page * _KOUTEN_MAX_POINTS:(page + 1) * _KOUTEN_MAX_POINTS
             ]
 
-            if is_first_sheet:
-                # 最初のシートはテンプレートシートをそのまま使う
-                ws = template_ws
-                suffix = f"_{page + 1}" if pages > 1 else ""
-                ws.title = f"ブロック{block_num}{suffix}"
-                is_first_sheet = False
-            else:
-                # 2シート目以降はテンプレートシートをコピー
-                suffix = f"_{page + 1}" if pages > 1 and page > 0 else ""
-                sheet_name = f"ブロック{block_num}{suffix}"
-                ws = wb.copy_worksheet(template_ws)
-                ws.title = sheet_name
+            suffix = f"_{page + 1}" if pages > 1 and page > 0 else ""
+            sheet_name = f"ブロック{block_num}{suffix}"
+            ws = wb.copy_worksheet(template_ws)
+            _copy_openpyxl_sheet_layout(template_ws, ws)
+            ws.title = sheet_name
 
             _write_kouten_sheet(ws, page_results, block_number=block_num, header=header)
+
+    wb.remove(template_ws)
 
     # 保存
     wb.save(output_path)

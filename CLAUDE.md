@@ -1,5 +1,8 @@
 # Chiseki
 
+Before moving, archiving, deleting, or looking for project data, follow
+`/home/maaatan/CLAUDE.md` and read `/home/maaatan/PROJECTS_INDEX.md`.
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill

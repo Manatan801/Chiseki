@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>傾斜区分分析ツール 操作マニュアル</title>
+  <style>
+    :root {
+      --primary: #1a5276;
+      --primary-light: #2980b9;
+      --accent: #27ae60;
+      --warning: #e67e22;
+      --danger: #e74c3c;
+      --bg: #f4f6f9;
+      --card-bg: #ffffff;
+      --text: #2c3e50;
+      --text-light: #7f8c8d;
+      --border: #dce3ea;
+      --radius: 8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Hiragino Kaku Gothic ProN", "Meiryo", "Yu Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ===== ヘッダー ===== */
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+      color: #fff;
+      padding: 40px 0 30px;
+      text-align: center;
+    }
+    header .badge {
+      display: inline-block;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.4);
+      border-radius: 20px;
+      padding: 4px 14px;
+      font-size: 12px;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+    header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    header p  { font-size: 15px; opacity: 0.85; }
+
+    /* ===== ナビゲーション ===== */
+    nav {
+      background: var(--primary);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    nav ul {
+      display: flex;
+      list-style: none;
+      max-width: 960px;
+      margin: 0 auto;
+      overflow-x: auto;
+    }
+    nav ul li a {
+      display: block;
+      color: rgba(255,255,255,0.8);
+      text-decoration: none;
+      padding: 12px 18px;
+      font-size: 13px;
+      white-space: nowrap;
+      transition: background 0.2s, color 0.2s;
+    }
+    nav ul li a:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+    /* ===== メインコンテンツ ===== */
+    main {
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 0 20px 60px;
+    }
+
+    /* ===== セクション ===== */
+    section { margin-bottom: 48px; }
+    section h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--primary);
+      border-left: 4px solid var(--primary-light);
+      padding-left: 12px;
+      margin-bottom: 20px;
+      padding-top: 4px;
+      padding-bottom: 4px;
+    }
+    section h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      margin: 24px 0 10px;
+    }
+
+    /* ===== カード ===== */
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    /* ===== ステップ ===== */
+    .steps { counter-reset: step; }
+    .step {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      align-items: flex-start;
+    }
+    .step-num {
+      counter-increment: step;
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      background: var(--primary-light);
+      color: #fff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .step-num::before { content: counter(step); }
+    .step-body { flex: 1; }
+    .step-body strong { display: block; font-size: 15px; margin-bottom: 4px; }
+    .step-body p, .step-body ul { font-size: 14px; color: #444; }
+    .step-body ul { padding-left: 18px; }
+    .step-body ul li { margin-bottom: 4px; }
+
+    /* ===== 傾斜区分テーブル ===== */
+    .slope-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .slope-table th {
+      background: var(--primary);
+      color: #fff;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+    }
+    .slope-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+    .slope-table tr:last-child td { border-bottom: none; }
+    .slope-table tr:nth-child(even) td { background: #f8fafc; }
+    .swatch {
+      display: inline-block;
+      width: 16px; height: 16px;
+      border-radius: 3px;
+      vertical-align: middle;
+      margin-right: 8px;
+      border: 1px solid rgba(0,0,0,0.15);
+    }
+
+    /* ===== ツールバーアイコン説明 ===== */
+    .toolbar-grid {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 8px 16px;
+      align-items: center;
+      font-size: 14px;
+    }
+    .toolbar-icon {
+      background: #34495e;
+      color: #fff;
+      border-radius: 6px;
+      width: 40px; height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.25);
+    }
+
+    /* ===== コールアウト ===== */
+    .callout {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      margin: 16px 0;
+      font-size: 14px;
+      align-items: flex-start;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout.info    { background: #eaf4fb; border-left: 4px solid #2980b9; }
+    .callout.warning { background: #fef9e7; border-left: 4px solid #f1c40f; }
+    .callout.tip     { background: #eafaf1; border-left: 4px solid #27ae60; }
+    .callout.danger  { background: #fdedec; border-left: 4px solid #e74c3c; }
+
+    /* ===== スクリーン図 ===== */
+    .screen-mock {
+      background: #ecf0f1;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin: 16px 0;
+      font-size: 13px;
+    }
+    .screen-mock .titlebar {
+      background: #bdc3c7;
+      padding: 6px 12px;
+      font-size: 12px;
+      color: #555;
+    }
+    .screen-mock .body { padding: 16px; }
+
+    /* タブUI モック */
+    .tab-bar {
+      display: flex;
+      background: #dfe6e9;
+      border-bottom: 1px solid #b2bec3;
+    }
+    .tab-bar .tab {
+      padding: 8px 16px;
+      font-size: 13px;
+      color: #636e72;
+      cursor: default;
+      border-right: 1px solid #b2bec3;
+    }
+    .tab-bar .tab.active {
+      background: #fff;
+      color: var(--primary);
+      font-weight: 700;
+      border-bottom: 2px solid var(--primary-light);
+      margin-bottom: -1px;
+    }
+
+    /* 地図モック */
+    .map-mock {
+      background: #d5e8d4;
+      border: 1px solid #82b366;
+      border-radius: 4px;
+      height: 200px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #555;
+      font-size: 13px;
+      overflow: hidden;
+    }
+    .map-mock::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(0deg, rgba(130,179,102,0.15) 0px, transparent 1px, transparent 40px),
+        repeating-linear-gradient(90deg, rgba(130,179,102,0.15) 0px, transparent 1px, transparent 40px);
+    }
+    .map-toolbar {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    .map-toolbar button {
+      display: block;
+      background: none;
+      border: none;
+      border-bottom: 1px solid #eee;
+      width: 30px;
+      height: 30px;
+      font-size: 14px;
+      cursor: default;
+      padding: 0;
+      text-align: center;
+    }
+    .map-toolbar button:last-child { border-bottom: none; }
+    .map-toolbar button.active { background: #3498db; color: #fff; }
+    .polygon-preview {
+      position: absolute;
+      right: 40px;
+      top: 30px;
+    }
+    .polygon-preview svg { filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3)); }
+
+    /* 結果テーブルモック */
+    .result-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 13px;
+    }
+    .result-row:last-child { border-bottom: none; }
+    .result-bar-wrap {
+      flex: 1;
+      background: #eee;
+      height: 8px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .result-bar { height: 100%; border-radius: 4px; }
+    .result-label { width: 90px; font-size: 12px; color: #444; }
+    .result-pct   { width: 44px; text-align: right; font-size: 12px; font-weight: 700; color: #333; }
+
+    /* ===== FAQ アコーディオン ===== */
+    details {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      overflow: hidden;
+    }
+    details summary {
+      padding: 14px 16px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      background: #f8fafc;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    details summary::-webkit-details-marker { display: none; }
+    details summary::before {
+      content: '▶';
+      font-size: 10px;
+      color: var(--primary-light);
+      transition: transform 0.2s;
+    }
+    details[open] summary::before { transform: rotate(90deg); }
+    details .detail-body {
+      padding: 14px 16px;
+      font-size: 14px;
+      background: #fff;
+      border-top: 1px solid var(--border);
+      line-height: 1.7;
+    }
+
+    /* ===== フッター ===== */
+    footer {
+      background: var(--primary);
+      color: rgba(255,255,255,0.7);
+      text-align: center;
+      padding: 24px;
+      font-size: 13px;
+    }
+
+    /* ===== ユーティリティ ===== */
+    .text-muted { color: var(--text-light); font-size: 13px; }
+    .mt-8  { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    p { margin-bottom: 10px; }
+    code {
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+      padding: 1px 6px;
+      font-family: "Consolas", "Courier New", monospace;
+      font-size: 13px;
+      color: #c0392b;
+    }
+
+    @media (max-width: 640px) {
+      header h1 { font-size: 22px; }
+      nav ul li a { padding: 10px 12px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ===== ヘッダー ===== -->
+<header>
+  <div class="badge">操作マニュアル</div>
+  <h1>🗾 傾斜区分分析ツール</h1>
+  <p>国土地理院の標高データを用いた地籍調査向け傾斜割合自動算出システム</p>
+</header>
+
+<!-- ===== ナビゲーション ===== -->
+<nav>
+  <ul>
+    <li><a href="#overview">概要</a></li>
+    <li><a href="#login">ログイン</a></li>
+    <li><a href="#howto">操作手順</a></li>
+    <li><a href="#slope-class">傾斜区分</a></li>
+    <li><a href="#results">結果の見方</a></li>
+    <li><a href="#tips">ヒント</a></li>
+    <li><a href="#faq">FAQ</a></li>
+  </ul>
+</nav>
+
+<!-- ===== メイン ===== -->
+<main>
+
+  <!-- ===== 概要 ===== -->
+  <section id="overview">
+    <h2>概要</h2>
+    <div class="card">
+      <p>
+        本ツールは、地籍調査における調査区域の<strong>傾斜区分割合を客観的に算出</strong>するためのWebアプリです。
+        国土地理院が公開している数値標高モデル（DEM）を自動取得し、
+        国土調査事業事務取扱要領に基づく6区分（平坦地〜急峻地）ごとの面積と割合を計算します。
+      </p>
+      <p>
+        従来、担当者の現地踏査による主観的な判断に頼っていた傾斜判定を、
+        <strong>データに基づく客観的な数値（エビデンス）</strong>として提示できるようになります。
+        歩掛・連乗係数の積算根拠資料や、財政部門・国への協議・予算要求資料としてもご活用いただけます。
+      </p>
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div>
+          <strong>データソース：</strong>国土地理院「基盤地図情報 数値標高モデル（DEM）」<br>
+          5mメッシュDEMを優先取得し、未整備地域は10mメッシュに自動フォールバックします。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ログイン ===== -->
+  <section id="login">
+    <h2>ログイン</h2>
+    <div class="card">
+      <p>アプリにアクセスすると最初にログイン画面が表示されます。</p>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <strong>URLにアクセスする</strong>
+            <p>ブラウザで管理者から案内されたURLを開きます。</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <strong>認証情報を入力する</strong>
+            <p>ユーザーIDとパスワードを入力し「ログイン」をクリックします。</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num"></div>
+          <div class="step-body">
+            <strong>「🗾 傾斜区分分析」タブを選択する</strong>
+            <p>ログイン後に表示される3つのタブから「🗾 傾斜区分分析」をクリックします。</p>
+            <div class="screen-mock mt-8">
+              <div class="titlebar">地籍調査DXツール</div>
+              <div class="tab-bar">
+                <div class="tab">📄 DXF帳票生成</div>
+                <div class="tab">🔍 土地データ照合</div>
+                <div class="tab active">🗾 傾斜区分分析</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 操作手順 ===== -->
+  <section id="howto">
+    <h2>操作手順</h2>
+
+    <h3>Step 1　地図上で調査区域を描画する</h3>
+    <div class="card">
+      <p>
+        画面下半分に表示される国土地理院の地図（淡色地図）で、調査対象エリアを絞り込んでから描画します。
+      </p>
+
+      <!-- 地図モック -->
+      <div class="map-mock">
+        <div class="map-toolbar">
+          <button title="ズームイン">+</button>
+          <button title="ズームアウト">−</button>
+          <button class="active" title="ポリゴン描画">⬠</button>
+          <button title="矩形描画">▭</button>
+          <button title="編集">✎</button>
+          <button title="削除">🗑</button>
+        </div>
+        <div class="polygon-preview">
+          <svg width="120" height="90" viewBox="0 0 120 90">
+            <polygon points="60,10 100,35 85,75 35,75 20,35"
+              fill="rgba(52,152,219,0.25)" stroke="#2980b9" stroke-width="2" stroke-dasharray="6,3"/>
+            <circle cx="60" cy="10" r="4" fill="#2980b9"/>
+            <circle cx="100" cy="35" r="4" fill="#2980b9"/>
+            <circle cx="85" cy="75" r="4" fill="#2980b9"/>
+            <circle cx="35" cy="75" r="4" fill="#2980b9"/>
+            <circle cx="20" cy="35" r="4" fill="#2980b9"/>
+          </svg>
+        </div>
+        <span style="position:absolute;bottom:10px;right:10px;background:rgba(255,255,255,0.85);padding:2px 8px;border-radius:4px;font-size:11px;">© 国土地理院</span>
+      </div>
+
+      <div class="mt-16">
+        <div style="display:grid;grid-template-columns:auto 1fr;gap:12px 20px;align-items:start;font-size:14px;">
+          <div class="toolbar-icon">⬠</div>
+          <div>
+            <strong>ポリゴン描画ツール（推奨）</strong><br>
+            地図左側のツールバーから五角形アイコンを選択します。
+            クリックして頂点を打ち、最後に最初の頂点をクリックして閉じます。
+          </div>
+          <div class="toolbar-icon">▭</div>
+          <div>
+            <strong>矩形描画ツール</strong><br>
+            対角2点をドラッグするだけで矩形エリアを指定できます。
+            おおまかなエリア確認に便利です。
+          </div>
+          <div class="toolbar-icon">✎</div>
+          <div>
+            <strong>編集ツール</strong><br>
+            描画済みのポリゴンの頂点を動かして形を修正できます。
+          </div>
+          <div class="toolbar-icon">🗑</div>
+          <div>
+            <strong>削除ツール</strong><br>
+            描画済みの図形を全て削除して描き直せます。
+          </div>
+        </div>
+      </div>
+
+      <div class="callout tip mt-16">
+        <span class="callout-icon">💡</span>
+        <div>
+          ポリゴン描画中はマウスホイールでズームイン・アウトできます。
+          山間部など細かい地形を精度よく囲うには、あらかじめズームインしてから描画することをお勧めします。
+        </div>
+      </div>
+      <div class="callout warning">
+        <span class="callout-icon">⚠️</span>
+        <div>
+          <strong>選択エリアの上限：</strong>
+          バウンディングボックスが約0.25°²（緯度・経度差の積）を超えると、取得タイル数が多くなりすぎるためエラーになります。
+          概ね一辺が25km以下のエリアを目安にしてください。
+        </div>
+      </div>
+    </div>
+
+    <h3>Step 2　解析を実行する</h3>
+    <div class="card">
+      <p>ポリゴンを描画すると「ポリゴンを検出しました（N頂点）」と緑色のメッセージが表示されます。</p>
+      <p>
+        <strong style="color:var(--primary-light);">「傾斜を解析する」</strong>ボタン（青色の一次ボタン）をクリックします。
+      </p>
+      <div class="callout info">
+        <span class="callout-icon">ℹ️</span>
+        <div>
+          解析はインターネット経由で国土地理院サーバーからDEMデータを取得します。
+          エリアの広さにより<strong>数秒〜1分程度</strong>かかる場合があります。
+          スピナーが表示されている間はそのままお待ちください。
+        </div>
+      </div>
+    </div>
+
+    <h3>Step 3　結果を確認・活用する</h3>
+    <div class="card">
+      <p>解析完了後、画面下部に以下の2つの出力が表示されます。</p>
+      <ul style="padding-left:20px;font-size:14px;margin-bottom:12px;">
+        <li><strong>傾斜区分別 面積・割合テーブル</strong>（平坦地〜急峻地の6行）</li>
+        <li><strong>傾斜区分割合 円グラフ</strong></li>
+      </ul>
+
+      <!-- 結果イメージ -->
+      <div style="background:#f8fafc;border:1px solid #dce3ea;border-radius:6px;padding:16px;margin:12px 0;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:#555;">■ 傾斜区分別 面積・割合（イメージ）</div>
+        <div class="result-row">
+          <div class="result-label"><span class="swatch" style="background:#2ecc71;"></span>平坦地</div>
+          <div class="result-bar-wrap"><div class="result-bar" style="width:42%;background:#2ecc71;"></div></div>
+          <div class="result-pct">42.1%</div>
+        </div>
+        <div class="result-row">
+          <div class="result-label"><span class="swatch" style="background:#a8e063;"></span>緩傾斜地</div>
+          <div class="result-bar-wrap"><div class="result-bar" style="width:28%;background:#a8e063;"></div></div>
+          <div class="result-pct">28.3%</div>
+        </div>
+        <div class="result-row">
+          <div class="result-label"><span class="swatch" style="background:#f1c40f;"></span>中傾斜地</div>
+          <div class="result-bar-wrap"><div class="result-bar" style="width:17%;background:#f1c40f;"></div></div>
+          <div class="result-pct">17.0%</div>
+        </div>
+        <div class="result-row">
+          <div class="result-label"><span class="swatch" style="background:#e67e22;"></span>急傾斜地(1)</div>
+          <div class="result-bar-wrap"><div class="result-bar" style="width:8%;background:#e67e22;"></div></div>
+          <div class="result-pct">8.4%</div>
+        </div>
+        <div class="result-row">
+          <div class="result-label"><span class="swatch" style="background:#e74c3c;"></span>急傾斜地(2)</div>
+          <div class="result-bar-wrap"><div class="result-bar" style="width:3%;background:#e74c3c;"></div></div>
+          <div class="result-pct">3.2%</div>
+        </div>
+        <div class="result-row">
+          <div class="result-label"><span class="swatch" style="background:#8e0000;"></span>急峻地</div>
+          <div class="result-bar-wrap"><div class="result-bar" style="width:1%;background:#8e0000;"></div></div>
+          <div class="result-pct">1.0%</div>
+        </div>
+      </div>
+
+      <p class="text-muted">
+        画面右クリック→「名前を付けて保存」でページを保存するか、
+        ブラウザの印刷機能（Ctrl+P / Cmd+P）を利用してPDFとして保存できます。
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== 傾斜区分 ===== -->
+  <section id="slope-class">
+    <h2>傾斜区分の定義</h2>
+    <div class="card">
+      <p>
+        国土調査事業事務取扱要領に規定された6区分を採用しています。
+        歩掛・連乗係数の積算基準と対応しています。
+      </p>
+      <table class="slope-table mt-16">
+        <thead>
+          <tr>
+            <th>区分名</th>
+            <th>傾斜角（度）</th>
+            <th>色</th>
+            <th>特徴・目安</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="swatch" style="background:#2ecc71;"></span><strong>平坦地</strong></td>
+            <td>0° 〜 5°未満</td>
+            <td>緑</td>
+            <td>農地・住宅地・平野部。歩行が容易。</td>
+          </tr>
+          <tr>
+            <td><span class="swatch" style="background:#a8e063;"></span><strong>緩傾斜地</strong></td>
+            <td>5° 〜 15°未満</td>
+            <td>黄緑</td>
+            <td>丘陵・台地の縁辺部。通常の山道程度。</td>
+          </tr>
+          <tr>
+            <td><span class="swatch" style="background:#f1c40f;"></span><strong>中傾斜地</strong></td>
+            <td>15° 〜 25°未満</td>
+            <td>黄</td>
+            <td>低山・丘陵地帯。荷物を持っての移動に困難を伴う。</td>
+          </tr>
+          <tr>
+            <td><span class="swatch" style="background:#e67e22;"></span><strong>急傾斜地(1)</strong></td>
+            <td>25° 〜 35°未満</td>
+            <td>オレンジ</td>
+            <td>急な山地斜面。特殊な装備や安全確保が必要になる場合がある。</td>
+          </tr>
+          <tr>
+            <td><span class="swatch" style="background:#e74c3c;"></span><strong>急傾斜地(2)</strong></td>
+            <td>35° 〜 45°未満</td>
+            <td>赤</td>
+            <td>急峻な山岳斜面。ロープ等の補助器具が必要。</td>
+          </tr>
+          <tr>
+            <td><span class="swatch" style="background:#8e0000;"></span><strong>急峻地</strong></td>
+            <td>45°以上</td>
+            <td>暗赤</td>
+            <td>岩壁・崖に近い地形。現地作業が極めて困難。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== 結果の見方 ===== -->
+  <section id="results">
+    <h2>結果の見方と活用方法</h2>
+    <div class="card">
+      <h3>面積・割合テーブルの列説明</h3>
+      <table class="slope-table mt-8">
+        <thead>
+          <tr><th>列名</th><th>説明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>傾斜区分</td><td>6段階の傾斜区分名</td></tr>
+          <tr><td>面積 (ha)</td><td>ポリゴン内のその区分の面積（ヘクタール）</td></tr>
+          <tr><td>面積 (m²)</td><td>同上（平方メートル）</td></tr>
+          <tr><td>割合 (%)</td><td>全有効ピクセルに占める割合（合計≒100%）</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="mt-16">積算への活用例</h3>
+      <p>
+        算出された傾斜割合を用いて、下表のように積算基準書の連乗係数を加重平均することで、
+        調査区域全体の補正係数を客観的に設定できます。
+      </p>
+      <div class="callout tip">
+        <span class="callout-icon">💡</span>
+        <div>
+          例：平坦地42%、緩傾斜地28%、中傾斜地17%、急傾斜地(1)8%、急傾斜地(2)3%、急峻地1%
+          の場合、各区分の連乗係数に割合を乗じて合計することで全体の加重平均補正係数が求まります。
+        </div>
+      </div>
+
+      <h3 class="mt-16">画面下部のメタ情報</h3>
+      <p>結果テーブルの下に以下の情報が表示されます。</p>
+      <ul style="padding-left:20px;font-size:14px;">
+        <li><strong>解析エリア</strong>：取得したDEMタイルの北南西東境界（緯度経度）</li>
+        <li><strong>DEM解像度</strong>：使用したDEM種別（5m or 10m）</li>
+        <li><strong>集計面積</strong>：ポリゴン内の有効ピクセル総面積（ha）</li>
+      </ul>
+      <div class="callout info mt-16">
+        <span class="callout-icon">ℹ️</span>
+        <div>
+          集計面積と公図面積に差がある場合、ポリゴン境界の描画精度やDEM解像度の影響が考えられます。
+          傾斜<em>割合</em>（%）は相対値のため、面積の差があっても割合の算出精度には大きく影響しません。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ヒント ===== -->
+  <section id="tips">
+    <h2>操作のヒント</h2>
+    <div class="card">
+      <div class="callout tip">
+        <span class="callout-icon">🗺️</span>
+        <div>
+          <strong>地図の背景を切り替える：</strong>
+          地図右上の「レイヤー」アイコンから背景地図を切り替えられます。
+          地形の起伏が把握しやすい「陰影起伏図」への切り替えもお試しください。
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="callout-icon">🔁</span>
+        <div>
+          <strong>描き直すには：</strong>
+          削除ツール（🗑）をクリックし「Clear All」を選択すると全図形を削除できます。
+          その後、ポリゴン描画ツールで再描画してください。
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="callout-icon">📐</span>
+        <div>
+          <strong>精度を高めるには：</strong>
+          ポリゴンの各頂点を地番界・道路・河川などの目標物に合わせて配置すると、
+          実際の調査区域に近い結果が得られます。
+        </div>
+      </div>
+      <div class="callout tip">
+        <span class="callout-icon">💾</span>
+        <div>
+          <strong>結果を保存するには：</strong>
+          ブラウザの印刷機能（Ctrl+P / Cmd+P）→「PDFとして保存」を選択することで、
+          テーブルと円グラフを含むPDFを作成できます。
+          また、テーブルのセルをドラッグして選択しコピーすると、Excelにそのまま貼り付け可能です。
+        </div>
+      </div>
+      <div class="callout warning">
+        <span class="callout-icon">⚠️</span>
+        <div>
+          <strong>解析後にポリゴンを変更する場合：</strong>
+          ポリゴンを再描画しても結果は自動更新されません。
+          再描画後に「傾斜を解析する」ボタンを再度クリックしてください。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FAQ ===== -->
+  <section id="faq">
+    <h2>よくある質問（FAQ）</h2>
+
+    <details>
+      <summary>解析に時間がかかりますが、止まっていますか？</summary>
+      <div class="detail-body">
+        スピナー（読み込み中のアニメーション）が表示されている間は正常に処理中です。
+        国土地理院サーバーからDEMタイルを複数枚ダウンロードするため、
+        エリアが広い場合は1分以上かかることがあります。
+        スピナーが消えた後に結果が表示されない場合は、エラーメッセージを確認してください。
+      </div>
+    </details>
+
+    <details>
+      <summary>「標高データの取得に失敗しました」と表示される</summary>
+      <div class="detail-body">
+        以下の点をご確認ください：
+        <ul style="padding-left:18px;margin-top:8px;">
+          <li>インターネット接続が正常かどうか</li>
+          <li>選択エリアが日本国内（国土地理院DEM整備範囲）かどうか</li>
+          <li>エリアが広すぎないか（一辺25km以内を目安に）</li>
+        </ul>
+        それでも解決しない場合は、しばらく時間をおいてから再試行してください。
+        国土地理院のサーバーが一時的に混雑している場合があります。
+      </div>
+    </details>
+
+    <details>
+      <summary>割合の合計が100%にならない</summary>
+      <div class="detail-body">
+        ポリゴン内にDEMのNoDataピクセル（標高値なし）が含まれる場合、
+        そのピクセルは集計から除外されます。
+        このため合計が100%を若干下回ることがあります（通常0.1%以下の誤差）。
+        海岸線付近や一部の離島では、海面部分がNoDataになります。
+      </div>
+    </details>
+
+    <details>
+      <summary>5mDEMと10mDEMはどう使い分けられますか？</summary>
+      <div class="detail-body">
+        ツールは自動的に5mDEM（dem5a）の取得を試みます。
+        5mDEMが存在しない地域（一部山間部・離島など）では、自動的に10mDEM（dem）にフォールバックします。
+        画面下部のメタ情報に「DEM解像度：5m or 10m」と表示されますが、
+        どちらが使われたかは現時点では区別表示されていません。
+        精度が特に重要な場合は、国土地理院のWebサイトで対象地域のDEM整備状況をご確認ください。
+      </div>
+    </details>
+
+    <details>
+      <summary>ポリゴンを描いても「ポリゴンを検出しました」が表示されない</summary>
+      <div class="detail-body">
+        Streamlitの仕様上、地図の操作後に画面上部の別の要素をクリックすることで
+        描画結果がアプリに反映されます。
+        ポリゴンを閉じた後、地図の外（例えば画面上部のタイトル付近）を一度クリックしてみてください。
+        それでも表示されない場合は、ブラウザを再読み込みして再試行してください。
+      </div>
+    </details>
+
+    <details>
+      <summary>矩形ツールで選択した場合も正しく計算されますか？</summary>
+      <div class="detail-body">
+        はい、矩形（長方形）もポリゴンの一種として処理されます。
+        矩形の場合は4頂点のポリゴンとして認識されます。
+        ポリゴンと矩形のどちらで描いても、結果の精度に違いはありません。
+      </div>
+    </details>
+
+    <details>
+      <summary>算出された傾斜割合の精度はどの程度ですか？</summary>
+      <div class="detail-body">
+        DEMの解像度（5m or 10m）がそのまま精度の限界となります。
+        5mDEMの場合、1ピクセルあたり約25m²の精度で傾斜を評価しています。
+        急峻な崖や狭い谷など、DEMの解像度より細かい地形変化は捉えられないことに注意してください。
+        また、植生・建物による表面形状の影響を含む場合があります（DSMではなくDTMに近い）。
+        現地の実態と大きく異なる場合は、現地踏査結果と照合してください。
+      </div>
+    </details>
+  </section>
+
+</main>
+
+<!-- ===== フッター ===== -->
+<footer>
+  <p>地籍調査DXツール &nbsp;|&nbsp; 傾斜区分分析マニュアル</p>
+  <p style="margin-top:6px;font-size:12px;">
+    標高データ提供：国土地理院「基盤地図情報 数値標高モデル」&nbsp;/&nbsp;
+    傾斜区分基準：国土調査事業事務取扱要領
+  </p>
+</footer>
+
+</body>
+</html>

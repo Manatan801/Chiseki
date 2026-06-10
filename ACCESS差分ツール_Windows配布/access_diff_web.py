@@ -49,6 +49,12 @@ LAND_KEY_CANDIDATES = [
     ["USRCD"],
 ]
 
+# 全テーブル共通の「筆」識別キー。L31を参照源として、L33/L34等の差分にも
+# 地番・地目・地積・字を付与するために使う。
+LAND_PARCEL_KEY_COLS = ["AzaKY", "FDKBN", "CHIBN", "SEQ"]
+LAND_PARCEL_KEY_COLS_ALT = ["mAzaKY", "MFDKBN", "MCHIBN", "MSEQ"]
+LAND_CONTEXT_FIELDS = ("地番", "地目", "地積", "字")
+
 
 HTML = """<!doctype html>
 <html lang="ja">
@@ -285,6 +291,103 @@ def key_to_text(key: tuple[str, ...]) -> str:
     return " / ".join(key)
 
 
+def _first_nonempty(row: dict[str, Any], candidates: list[str]) -> str:
+    for col in candidates:
+        if col in row:
+            val = normalize_cell(row.get(col))
+            if val:
+                return val
+    return ""
+
+
+def _decode_chibn(chibn: str) -> str:
+    """CHIBN(15桁コード)を本番-枝番形式に整形する。
+    例: '000373000000000' -> '373', '001220000010000' -> '1220-10'
+    形式が想定外なら入力をそのまま返す。"""
+    if not chibn or len(chibn) != 15:
+        return chibn
+    head = chibn[0:6].lstrip("0") or "0"
+    mid = chibn[6:12].lstrip("0")
+    tail = chibn[12:15].lstrip("0")
+    parts = [head]
+    if mid:
+        parts.append(mid)
+    if tail:
+        parts.append(tail)
+    return "-".join(parts)
+
+
+def extract_land_attrs(row: dict[str, Any]) -> dict[str, str]:
+    """L31等の1行から地番・地目・地積・字を取り出す。
+    ChibNM/MOKUNMが空の場合はコード値(CHIBN/CHICD)へフォールバックする。"""
+    chibnm = _first_nonempty(row, ["ChibNM", "mChibNM"])
+    chibn_raw = _first_nonempty(row, ["CHIBN", "MCHIBN"])
+    chiban = chibnm or _decode_chibn(chibn_raw) or chibn_raw
+
+    mokunm = _first_nonempty(row, ["MOKUNM"])
+    chicd = _first_nonempty(row, ["CHICD", "MCHICD"])
+    if mokunm:
+        chimoku = mokunm
+    elif chicd and chicd != "0":
+        chimoku = f"コード:{chicd}"
+    else:
+        chimoku = ""
+
+    return {
+        "地番": chiban,
+        "地目": chimoku,
+        "地積": _first_nonempty(row, ["TOKSK", "KEISK", "MCHISK"]),
+        "字": _first_nonempty(row, ["a小字名", "m小字名"]),
+    }
+
+
+def row_parcel_key(row: dict[str, Any]) -> tuple[str, ...] | None:
+    """任意行から(AzaKY, FDKBN, CHIBN, SEQ)形式の筆キーを推定する。"""
+    for cols in (LAND_PARCEL_KEY_COLS, LAND_PARCEL_KEY_COLS_ALT):
+        if all(col in row for col in cols):
+            key = tuple(normalize_cell(row.get(col)) for col in cols)
+            if any(key):
+                return key
+    return None
+
+
+def build_land_context_index(
+    base_l31: "TableData | None",
+    compare_l31: "TableData | None",
+) -> dict[tuple[str, ...], dict[str, str]]:
+    """L31から筆キー→(地番/地目/地積/字)の辞書を作る。基準MDB側を優先。"""
+    index: dict[tuple[str, ...], dict[str, str]] = {}
+    # compare_l31 を先に入れて base_l31 で上書き（base優先）
+    for source in (compare_l31, base_l31):
+        if source is None:
+            continue
+        if not all(col in source.columns for col in LAND_PARCEL_KEY_COLS):
+            continue
+        for row in source.rows:
+            key = row_parcel_key(row)
+            if key is None:
+                continue
+            attrs = extract_land_attrs(row)
+            if not any(attrs.values()) and key in index:
+                continue
+            index[key] = attrs
+    return index
+
+
+def lookup_land_context(
+    row: dict[str, Any] | None,
+    index: dict[tuple[str, ...], dict[str, str]],
+) -> dict[str, str]:
+    empty = {field: "" for field in LAND_CONTEXT_FIELDS}
+    if not row:
+        return empty
+    # まずは行自身に地番/地目/地積/字が入っているか（L31本体の場合）を確認
+    direct = extract_land_attrs(row)
+    key = row_parcel_key(row)
+    fallback = index.get(key, empty) if key is not None else empty
+    return {field: direct.get(field) or fallback.get(field, "") for field in LAND_CONTEXT_FIELDS}
+
+
 class AccessReader:
     def __init__(self, path: Path):
         self.path = path
@@ -401,6 +504,8 @@ def compare_table(table: str, base: TableData, compare: TableData, ignore: set[s
                     "column": col,
                     "base_value": base_value,
                     "compare_value": compare_value,
+                    "base_row": base_row,
+                    "compare_row": compare_row,
                 })
 
     base_only = [base_index[key] for key in sorted(base_keys - compare_keys)]
@@ -429,13 +534,35 @@ def compare_table(table: str, base: TableData, compare: TableData, ignore: set[s
     )
 
 
-def compare_databases(base_path: Path, compare_path: Path, requested_tables: list[str], ignore_columns: list[str]) -> tuple[list[TableDiff], list[str], list[str]]:
+def compare_databases(
+    base_path: Path,
+    compare_path: Path,
+    requested_tables: list[str],
+    ignore_columns: list[str],
+) -> tuple[list[TableDiff], dict[tuple[str, ...], dict[str, str]], list[str], list[str]]:
     ignore = set(ignore_columns)
     with AccessReader(base_path) as base_reader, AccessReader(compare_path) as compare_reader:
         base_tables = base_reader.table_names()
         compare_tables = compare_reader.table_names()
         base_set = set(base_tables)
         compare_set = set(compare_tables)
+
+        # 先にL31を読み、筆キー→属性のコンテキスト索引を構築する。
+        # 他テーブル（L33/L34等）の差分行にも地番/地目/地積/字を付加するため。
+        l31_base: TableData | None = None
+        l31_compare: TableData | None = None
+        if "L31" in base_set:
+            try:
+                l31_base = base_reader.read_table("L31")
+            except Exception:
+                l31_base = None
+        if "L31" in compare_set:
+            try:
+                l31_compare = compare_reader.read_table("L31")
+            except Exception:
+                l31_compare = None
+        context_index = build_land_context_index(l31_base, l31_compare)
+
         tables = requested_tables or sorted(base_set & compare_set)
         results: list[TableDiff] = []
         for table in tables:
@@ -445,10 +572,17 @@ def compare_databases(base_path: Path, compare_path: Path, requested_tables: lis
             if table not in compare_set:
                 results.append(TableDiff(table=table, status="比較MDBにテーブルなし", key_columns=[], message="比較をスキップしました。"))
                 continue
-            base_data = base_reader.read_table(table)
-            compare_data = compare_reader.read_table(table)
+            # L31は既に読み込み済みなら再利用する。
+            if table == "L31" and l31_base is not None:
+                base_data = l31_base
+            else:
+                base_data = base_reader.read_table(table)
+            if table == "L31" and l31_compare is not None:
+                compare_data = l31_compare
+            else:
+                compare_data = compare_reader.read_table(table)
             results.append(compare_table(table, base_data, compare_data, ignore))
-        return results, base_tables, compare_tables
+        return results, context_index, base_tables, compare_tables
 
 
 def append_sheet(wb: Workbook, title: str, headers: list[str], rows: list[list[Any]]) -> None:
@@ -469,16 +603,30 @@ def append_sheet(wb: Workbook, title: str, headers: list[str], rows: list[list[A
         ws.column_dimensions[get_column_letter(idx)].width = min(max(max_len + 2, 10), 55)
 
 
-def rows_for_table_only(results: list[TableDiff], side: str) -> list[list[Any]]:
+def rows_for_table_only(
+    results: list[TableDiff],
+    side: str,
+    context_index: dict[tuple[str, ...], dict[str, str]],
+) -> list[list[Any]]:
     out: list[list[Any]] = []
     for result in results:
         rows = result.base_only if side == "base" else result.compare_only
         for row in rows or []:
-            out.append([result.table, json.dumps(row, ensure_ascii=False)])
+            ctx = lookup_land_context(row, context_index)
+            out.append([
+                result.table,
+                ctx["地番"], ctx["地目"], ctx["地積"], ctx["字"],
+                json.dumps(row, ensure_ascii=False),
+            ])
     return out
 
 
-def build_workbook(results: list[TableDiff], base_tables: list[str], compare_tables: list[str]) -> bytes:
+def build_workbook(
+    results: list[TableDiff],
+    context_index: dict[tuple[str, ...], dict[str, str]],
+    base_tables: list[str],
+    compare_tables: list[str],
+) -> bytes:
     wb = Workbook()
     wb.remove(wb.active)
 
@@ -497,13 +645,21 @@ def build_workbook(results: list[TableDiff], base_tables: list[str], compare_tab
         ])
     append_sheet(wb, "概要", ["テーブル", "状態", "照合キー", "基準件数", "比較件数", "変更行数", "基準のみ", "比較のみ", "備考"], summary_rows)
 
+    diff_headers = ["テーブル", "照合キー"] + list(LAND_CONTEXT_FIELDS) + ["列", "基準MDBの値", "比較MDBの値"]
     diff_rows = []
     for result in results:
         for diff in result.diffs or []:
-            diff_rows.append([diff["table"], diff["key"], diff["column"], diff["base_value"], diff["compare_value"]])
-    append_sheet(wb, "差分", ["テーブル", "照合キー", "列", "基準MDBの値", "比較MDBの値"], diff_rows)
-    append_sheet(wb, "基準のみ", ["テーブル", "行データ(JSON)"], rows_for_table_only(results, "base"))
-    append_sheet(wb, "比較のみ", ["テーブル", "行データ(JSON)"], rows_for_table_only(results, "compare"))
+            ctx = lookup_land_context(diff.get("base_row") or diff.get("compare_row"), context_index)
+            diff_rows.append([
+                diff["table"], diff["key"],
+                ctx["地番"], ctx["地目"], ctx["地積"], ctx["字"],
+                diff["column"], diff["base_value"], diff["compare_value"],
+            ])
+    append_sheet(wb, "差分", diff_headers, diff_rows)
+
+    only_headers = ["テーブル"] + list(LAND_CONTEXT_FIELDS) + ["行データ(JSON)"]
+    append_sheet(wb, "基準のみ", only_headers, rows_for_table_only(results, "base", context_index))
+    append_sheet(wb, "比較のみ", only_headers, rows_for_table_only(results, "compare", context_index))
 
     table_rows = []
     all_tables = sorted(set(base_tables) | set(compare_tables))
@@ -543,8 +699,8 @@ def run_compare(payload: dict[str, Any]) -> dict[str, Any]:
         base_path.write_bytes(base64.b64decode(payload["base_data"]))
         compare_path.write_bytes(base64.b64decode(payload["compare_data"]))
 
-        results, base_tables, compare_tables = compare_databases(base_path, compare_path, tables, ignore_columns)
-        workbook = build_workbook(results, base_tables, compare_tables)
+        results, context_index, base_tables, compare_tables = compare_databases(base_path, compare_path, tables, ignore_columns)
+        workbook = build_workbook(results, context_index, base_tables, compare_tables)
         stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         return {
             "summary": make_summary(results),
