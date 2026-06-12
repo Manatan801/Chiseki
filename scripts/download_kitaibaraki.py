@@ -19,7 +19,7 @@ import requests
 from PIL import Image
 
 # ===== 設定 =====
-OUT_DIR = Path("/mnt/f/傾斜区分分析_北茨城市/data")
+OUT_DIR = Path(__file__).parent.parent / "傾斜区分分析_北茨城市" / "data"
 DEM_NPZ = OUT_DIR / "kitaibaraki_dem.npz"
 TILES_DIR = OUT_DIR / "map_tiles"
 
