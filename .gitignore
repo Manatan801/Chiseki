@@ -43,6 +43,8 @@ BM_CSV差分ツール_Windows*/
 # (DEM 123MB は GitHub の 100MB 制限超。wheels は初回セットアップで再取得可)
 傾斜区分分析_北茨城市/data/
 傾斜区分分析_北茨城市/wheels/
+傾斜区分分析_北茨城市_v2/data/
+傾斜区分分析_北茨城市_v2/wheels/
 
 # Work notes
 要改善/

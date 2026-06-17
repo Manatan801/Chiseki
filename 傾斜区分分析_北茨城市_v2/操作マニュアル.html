@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>傾斜区分分析ツール v2 操作マニュアル（北茨城市オフライン版）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Meiryo", "Yu Gothic", sans-serif; background: #f4f7fa; color: #2c3e50; line-height: 1.7; }
+  header { background: linear-gradient(135deg, #1a5276, #2980b9); color: #fff; padding: 32px 40px; }
+  header h1 { font-size: 24px; font-weight: 700; }
+  header p { font-size: 13px; opacity: 0.8; margin-top: 6px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 24px; }
+  h2 { font-size: 19px; color: #1a5276; border-left: 4px solid #2980b9; padding-left: 12px; margin: 36px 0 14px; }
+  h3 { font-size: 15px; color: #2c3e50; margin: 22px 0 8px; }
+  p, li { font-size: 14px; }
+  ul, ol { padding-left: 22px; }
+  li { margin-bottom: 6px; }
+  .step { display: flex; gap: 16px; align-items: flex-start; background: #fff; border: 1px solid #d6e4f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 14px; }
+  .step-num { background: #2980b9; color: #fff; border-radius: 50%; width: 32px; height: 32px; min-width: 32px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+  .step-body h3 { margin: 0 0 6px; font-size: 14px; }
+  .step-body p { font-size: 13px; color: #555; }
+  .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 18px 22px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th { background: #1a5276; color: #fff; padding: 9px 12px; text-align: left; }
+  td { padding: 8px 12px; border-bottom: 1px solid #eee; vertical-align: top; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: middle; margin-right: 8px; border: 1px solid rgba(0,0,0,0.2); }
+  .badge { display: inline-block; background: #e8f4fd; color: #1a5276; border: 1px solid #b3d4f0; border-radius: 4px; padding: 2px 8px; font-size: 12px; font-weight: 600; }
+  .warn { background: #fef9e7; border-left: 4px solid #f39c12; padding: 12px 16px; border-radius: 4px; font-size: 13px; margin: 12px 0; }
+  .info { background: #eaf4fd; border-left: 4px solid #2980b9; padding: 12px 16px; border-radius: 4px; font-size: 13px; margin: 12px 0; }
+  .ok  { background: #eafaf1; border-left: 4px solid #27ae60; padding: 12px 16px; border-radius: 4px; font-size: 13px; margin: 12px 0; }
+  .faq-q { font-weight: 700; color: #1a5276; margin-top: 16px; }
+  .faq-a { color: #555; margin-left: 16px; }
+  code { background: #ecf0f1; padding: 1px 6px; border-radius: 3px; font-family: Consolas, monospace; font-size: 12px; }
+  footer { text-align: center; font-size: 12px; color: #aaa; padding: 32px; border-top: 1px solid #ddd; margin-top: 48px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🗾 傾斜区分分析ツール v2 操作マニュアル</h1>
+  <p>北茨城市オフライン専用 v2　／　3×3最小二乗平面フィット方式　／　高詳細地図 z=17 収録済み</p>
+</header>
+
+<div class="container">
+
+<!-- ===== 概要 ===== -->
+<h2>概要</h2>
+<div class="card">
+  <p>本ツールは、北茨城市域を対象とした傾斜区分分析ツール v2 です。地図上にポリゴンを描画するだけで、国土調査事業事務取扱要領に定める6区分の傾斜区分別面積・割合が自動的に算出されます。</p>
+  <br>
+  <ul>
+    <li><strong>対象地域：</strong>北茨城市全域（DEMデータ収録済み）</li>
+    <li><strong>DEM格子寸法：</strong>約3.823m/ピクセル（DEM実範囲と配列サイズから算出）</li>
+    <li><strong>傾斜計算方式：</strong>3×3近傍9点による最小二乗平面フィット</li>
+    <li><strong>動作環境：</strong>Windows PC、インターネット不要（高詳細地図を含めてオフライン動作）</li>
+    <li><strong>必要ソフト：</strong>Python 3.9以上、numpy、matplotlib</li>
+  </ul>
+</div>
+
+<!-- ===== 初回セットアップ ===== -->
+<h2>初回セットアップ</h2>
+<p>初めて使用する際は、以下の手順でセットアップしてください。</p>
+<br>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <h3>Python のインストール（未インストールの場合）</h3>
+    <p>Pythonが入っていない場合は <a href="https://www.python.org/downloads/" target="_blank">https://www.python.org/downloads/</a> からインストールしてください。インストール時に「<strong>Add Python to PATH</strong>」にチェックを入れること。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <h3>初回セットアップの実行</h3>
+    <p>ツールフォルダ内の <code>初回セットアップ.bat</code> をダブルクリックして実行します。必要なライブラリ（numpy、matplotlib）が自動的にインストールされます。</p>
+  </div>
+</div>
+
+<div class="ok">
+  <strong>セットアップ完了後は「初回セットアップ.bat」を再実行する必要はありません。</strong>
+</div>
+
+<!-- ===== 起動方法 ===== -->
+<h2>起動方法</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <h3>起動ファイルをダブルクリック</h3>
+    <p>ツールフォルダ内の <code>傾斜区分分析_起動.bat</code> をダブルクリックします。黒いコマンドウィンドウが開き、数秒後にブラウザが自動的に起動します。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <h3>ブラウザが開かない場合</h3>
+    <p>お使いのブラウザのアドレスバーに <code>http://127.0.0.1:8768/</code> と入力してアクセスしてください。</p>
+  </div>
+</div>
+
+<div class="warn">
+  <strong>⚠️ コマンドウィンドウを閉じるとツールが終了します。</strong><br>
+  分析中はコマンドウィンドウを開いたままにしてください。
+</div>
+
+<!-- ===== 操作手順 ===== -->
+<h2>操作手順</h2>
+
+<div class="step">
+  <div class="step-num">1</div>
+  <div class="step-body">
+    <h3>分析したい場所に地図を移動・拡大</h3>
+    <p>マウスのホイールでズーム、ドラッグで移動できます。北茨城市内の分析したい地点を中心に表示してください。<br>
+    ※ 北茨城市のDEMデータのみ収録しています。市外は分析できません。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">2</div>
+  <div class="step-body">
+    <h3>地図上部の描画ボタンでエリアを指定する</h3>
+    <p>地図の下にある <strong>「⬠ ポリゴンで指定」</strong> または <strong>「▭ 長方形で指定」</strong> ボタンをクリックし、分析したいエリアを描画します。</p>
+    <ul style="margin-top:8px; font-size:13px;">
+      <li><strong>ポリゴン：</strong>クリックで頂点を追加 → <strong>ダブルクリックで完了</strong></li>
+      <li><strong>長方形：</strong>クリックしてドラッグで長方形を描き、マウスを離して確定</li>
+      <li>描画を取り消したい場合は <strong>「クリア」</strong> ボタンを押してください</li>
+    </ul>
+    <p style="margin-top:8px; color:#888; font-size:12px;">※ 地図左側の小さなツールバーからも描画できます（編集・削除も可能）。</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-num">3</div>
+  <div class="step-body">
+    <h3>「傾斜を解析する」ボタンを押す</h3>
+    <p>エリアを描画すると「傾斜を解析する」ボタンが有効になります。クリックすると、約1〜5秒で傾斜区分別の面積・割合が表示されます。</p>
+  </div>
+</div>
+
+<div class="info">
+  <strong>描画をやり直す場合：</strong> 「クリア」ボタンで削除し、もう一度描画してください。
+</div>
+
+<!-- ===== 傾斜区分定義 ===== -->
+<h2>傾斜区分の定義</h2>
+<p>国土調査事業事務取扱要領（地籍調査）に基づく6区分です。</p>
+<table>
+  <thead>
+    <tr>
+      <th>区分名</th>
+      <th>傾斜角度</th>
+      <th>概要</th>
+      <th>表示色</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>平坦地</td>
+      <td>0° 以上 5° 未満</td>
+      <td>ほぼ平坦な土地</td>
+      <td><span class="swatch" style="background:#2ecc71;"></span>#2ecc71</td>
+    </tr>
+    <tr>
+      <td>緩傾斜地</td>
+      <td>5° 以上 15° 未満</td>
+      <td>なだらかな傾斜地</td>
+      <td><span class="swatch" style="background:#a8e063;"></span>#a8e063</td>
+    </tr>
+    <tr>
+      <td>中傾斜地</td>
+      <td>15° 以上 25° 未満</td>
+      <td>中程度の傾斜地</td>
+      <td><span class="swatch" style="background:#f1c40f;"></span>#f1c40f</td>
+    </tr>
+    <tr>
+      <td>急傾斜地(1)</td>
+      <td>25° 以上 35° 未満</td>
+      <td>急な傾斜地（土砂災害警戒区域の目安）</td>
+      <td><span class="swatch" style="background:#e67e22;"></span>#e67e22</td>
+    </tr>
+    <tr>
+      <td>急傾斜地(2)</td>
+      <td>35° 以上 45° 未満</td>
+      <td>非常に急な傾斜地</td>
+      <td><span class="swatch" style="background:#e74c3c;"></span>#e74c3c</td>
+    </tr>
+    <tr>
+      <td>急峻地</td>
+      <td>45° 以上</td>
+      <td>崖・岩壁に相当する急峻な地形</td>
+      <td><span class="swatch" style="background:#8e0000;"></span>#8e0000</td>
+    </tr>
+  </tbody>
+</table>
+<p>※ 境界値（5°, 15°, 25°, 35°, 45°）は上位区分に含まれます（例：5°は「緩傾斜地」）。</p>
+
+<!-- ===== 結果の見方 ===== -->
+<h2>結果の見方</h2>
+<div class="card">
+  <h3>地図オーバーレイ</h3>
+  <p>解析結果が傾斜区分の色で地図に重畳表示されます。透明度スライダーで濃淡を調整でき、「地図にオーバーレイ表示」チェックボックスでON/OFFできます。地図右下に区分色の凡例も表示されます。</p>
+  <br>
+  <h3>傾斜区分別面積表</h3>
+  <p>各傾斜区分の以下のデータが表示されます：</p>
+  <ul>
+    <li><strong>面積 (ha)：</strong>ヘクタール単位の面積</li>
+    <li><strong>面積 (m²)：</strong>平方メートル単位の面積</li>
+    <li><strong>割合 (%)：</strong>ポリゴン全体に占める比率（合計は約100%）</li>
+  </ul>
+  <br>
+  <h3>CSVダウンロード</h3>
+  <p>「CSV ダウンロード」ボタンで面積・割合の一覧と解析情報（日時・範囲・平均傾斜・標高範囲）をCSV形式で保存できます。Excelでそのまま開けるBOM付きUTF-8形式です。</p>
+  <br>
+  <h3>円グラフ</h3>
+  <p>傾斜区分の割合を視覚的に確認できます。</p>
+  <br>
+  <h3>メタ情報</h3>
+  <p>解析範囲の座標（北緯・南緯・東経・西経）、集計面積（ha）、<strong>平均傾斜・最大傾斜・標高範囲（最低・最高・平均）</strong>が表示されます。</p>
+</div>
+
+<!-- ===== 注意事項 ===== -->
+<h2>注意事項</h2>
+<div class="warn">
+  <strong>⚠️ 対象地域について</strong><br>
+  本ツールには北茨城市全域のDEMデータのみ収録しています。北茨城市外の地域を選択すると「選択エリアが北茨城市のDEMデータ範囲外です」とエラーが表示されます。
+</div>
+<div class="warn">
+  <strong>⚠️ データの精度について</strong><br>
+  使用しているDEMデータは国土地理院の数値標高モデル5mメッシュです。傾斜は3×3近傍9点による最小二乗平面フィットで算出し、面積は地図表示ズームではなくDEM実グリッド寸法で集計します。現地の傾斜を概算するものであり、正確な測量値ではありません。成果として活用する際は、現地踏査による確認を行ってください。
+</div>
+<div class="info">
+  <strong>ℹ️ データ出典</strong><br>
+  国土地理院 基盤地図情報 数値標高モデル5mメッシュ（dem5a_png、z=15相当）<br>
+  背景地図：国土地理院 淡色地図（pale）および標準地図（std、高詳細ズーム収録済み）<br>
+  本ツールで使用しているデータは国土地理院の承認を得て使用しています（測量法第30条に基づく）。
+</div>
+
+<!-- ===== よくある質問 ===== -->
+<h2>よくある質問（FAQ）</h2>
+
+<p class="faq-q">Q1. ブラウザが自動で開きません。</p>
+<p class="faq-a">A. ブラウザのアドレスバーに <code>http://127.0.0.1:8768/</code> と直接入力してください。コマンドウィンドウが開いていることを確認してください。</p>
+
+<p class="faq-q">Q2. 「DEMデータが見つかりません」と表示されます。</p>
+<p class="faq-a">A. <code>data\kitaibaraki_dem.npz</code> が必要です。ツール配布フォルダ全体をコピーしてから起動してください。</p>
+
+<p class="faq-q">Q3. 「選択エリアが北茨城市のDEMデータ範囲外です」と表示されます。</p>
+<p class="faq-a">A. 本ツールは北茨城市専用です。ポリゴンを北茨城市内に描画してください。</p>
+
+<p class="faq-q">Q4. 解析に時間がかかります。</p>
+<p class="faq-a">A. 広いエリアほど時間がかかります。典型的な地籍調査の1筆（100〜1,000m²）では1〜2秒、大字単位（1km²程度）では5〜15秒ほどかかります。</p>
+
+<p class="faq-q">Q5. 地図が表示されません（灰色のみ）。</p>
+<p class="faq-a">A. <code>data\map_tiles\</code> フォルダが存在するか確認してください。背景地図タイルが含まれていない場合は表示されません。</p>
+
+<p class="faq-q">Q6. 結果の合計が100%になりません。</p>
+<p class="faq-a">A. 端数処理（小数点以下2桁）により、合計が99.9%〜100.1%になる場合があります。正常な動作です。</p>
+
+<p class="faq-q">Q7. 起動時に「必要なライブラリをインストールします」と表示されます。</p>
+<p class="faq-a">A. 同梱の <code>wheels</code> フォルダからオフラインでインストールされます。失敗する場合は、事前に <code>初回セットアップ.bat</code> を実行してください。</p>
+
+<p class="faq-q">Q8. 描画ボタンが見えない・押しても反応しない場合は？</p>
+<p class="faq-a">A. 地図下のコントロールバーにある <strong>「⬠ ポリゴンで指定」「▭ 長方形で指定」</strong> ボタンを使ってください。地図左のツールバーアイコンが見えなくても、これらのボタンから同じ操作ができます。ボタンを押した後は画面上部のガイドメッセージに従って操作してください。</p>
+
+<p class="faq-q">Q9. 地図オーバーレイで傾斜区分の色が薄い・見えにくい場合は？</p>
+<p class="faq-a">A. 「透明度」スライダーを右に動かすと色が濃くなります。地図上の背景を確認したい場合は左に動かすか、「地図にオーバーレイ表示」のチェックを外してください。</p>
+
+<p class="faq-q">Q10. CSVファイルをExcelで開くと文字化けします。</p>
+<p class="faq-a">A. CSVはBOM付きUTF-8形式で保存されています。ファイルをダブルクリックで開くと自動認識されます。もし文字化けする場合は、Excelの「データ」タブ→「テキストまたはCSVから」でインポートし、エンコードを「UTF-8」に指定してください。</p>
+
+<!-- ===== ファイル構成 ===== -->
+<h2>ファイル構成</h2>
+<div class="card">
+  <table>
+    <thead><tr><th>ファイル/フォルダ</th><th>説明</th></tr></thead>
+    <tbody>
+      <tr><td><code>傾斜区分分析_起動.bat</code></td><td>ツール起動ファイル（ダブルクリック）</td></tr>
+      <tr><td><code>初回セットアップ.bat</code></td><td>ライブラリインストール（初回のみ）</td></tr>
+      <tr><td><code>terrain_web.py</code></td><td>ツール本体（Python）</td></tr>
+      <tr><td><code>操作マニュアル.html</code></td><td>このマニュアル</td></tr>
+      <tr><td><code>requirements.txt</code></td><td>必要ライブラリ一覧</td></tr>
+      <tr><td><code>data\kitaibaraki_dem.npz</code></td><td>北茨城市DEMデータ（約100MB）</td></tr>
+      <tr><td><code>data\map_tiles\</code></td><td>背景地図タイル（z=10〜17収録済み）</td></tr>
+      <tr><td><code>assets\</code></td><td>Leaflet.js ライブラリ（描画アイコン画像を含む）</td></tr>
+      <tr><td><code>wheels\</code></td><td>オフラインインストール用wheelファイル</td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /container -->
+
+<footer>
+  傾斜区分分析ツール v2 北茨城市オフライン版　／　使用データ：国土地理院 基盤地図情報数値標高モデル5mメッシュ
+</footer>
+
+</body>
+</html>
