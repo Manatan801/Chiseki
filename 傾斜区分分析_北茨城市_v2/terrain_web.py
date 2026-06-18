@@ -19,6 +19,7 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 
@@ -26,6 +27,7 @@ HOST = "127.0.0.1"
 PORT = 8768
 SCRIPT_DIR = Path(__file__).parent
 DEM_NPZ    = SCRIPT_DIR / "data" / "kitaibaraki_dem.npz"
+BUILDINGS_GEOJSON = SCRIPT_DIR / "data" / "buildings.geojson"
 TILES_DIR  = SCRIPT_DIR / "data" / "map_tiles"
 ASSETS_DIR = SCRIPT_DIR / "assets"
 
@@ -50,6 +52,84 @@ try:
 except Exception as e:
     print(f"\n[エラー] DEMデータの読み込みに失敗しました: {e}", file=sys.stderr)
     sys.exit(1)
+
+
+# ===== 任意の建物外形データを読み込む =====
+
+BUILDINGS = []
+BUILDINGS_SOURCE = BUILDINGS_GEOJSON.name
+
+
+def _feature_properties(feature):
+    props = feature.get("properties")
+    return props if isinstance(props, dict) else {}
+
+
+def _iter_feature_polygons(feature):
+    geom = feature.get("geometry")
+    if not isinstance(geom, dict):
+        return
+    geom_type = geom.get("type")
+    coords = geom.get("coordinates")
+    if geom_type == "Polygon" and isinstance(coords, list):
+        yield coords
+    elif geom_type == "MultiPolygon" and isinstance(coords, list):
+        for polygon in coords:
+            if isinstance(polygon, list):
+                yield polygon
+
+
+def _ring_bbox(ring):
+    lons = [float(p[0]) for p in ring]
+    lats = [float(p[1]) for p in ring]
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def _bbox_intersects(a, b):
+    return not (a[2] < b[0] or b[2] < a[0] or a[3] < b[1] or b[3] < a[1])
+
+
+def load_buildings():
+    if not BUILDINGS_GEOJSON.exists():
+        print("建物外形データ: 未収録（data/buildings.geojson があれば読み込みます）")
+        return []
+
+    try:
+        data = json.loads(BUILDINGS_GEOJSON.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"建物外形データの読み込みに失敗しました: {e}", file=sys.stderr)
+        return []
+
+    features = data.get("features") if isinstance(data, dict) else None
+    if not isinstance(features, list):
+        print("建物外形データ: FeatureCollection ではありません", file=sys.stderr)
+        return []
+
+    buildings = []
+    for feature in features:
+        if not isinstance(feature, dict):
+            continue
+        props = _feature_properties(feature)
+        for polygon in _iter_feature_polygons(feature):
+            if not polygon or not isinstance(polygon[0], list) or len(polygon[0]) < 4:
+                continue
+            exterior = [[float(p[0]), float(p[1])] for p in polygon[0]]
+            holes = []
+            for ring in polygon[1:]:
+                if isinstance(ring, list) and len(ring) >= 4:
+                    holes.append([[float(p[0]), float(p[1])] for p in ring])
+            buildings.append({
+                "exterior": exterior,
+                "holes": holes,
+                "bbox": _ring_bbox(exterior),
+                "properties": props,
+            })
+
+    print(f"建物外形データ: {len(buildings):,} polygon 読み込み")
+    return buildings
+
+
+BUILDINGS = load_buildings()
 
 
 # ===== 傾斜計算ロジック =====
@@ -101,6 +181,193 @@ def dem_pixel_sizes_at_lat(lat, bounds=DEM_BOUNDS, shape=DEM.shape):
     pixel_size_x = ((east - west) / w) * meters_per_deg_lon
     pixel_size_y = ((north - south) / h) * meters_per_deg_lat
     return pixel_size_x, pixel_size_y
+
+
+def polygon_bbox(coords):
+    lons = [c[0] for c in coords]
+    lats = [c[1] for c in coords]
+    return min(lons), min(lats), max(lons), max(lats)
+
+
+def project_lonlat(coords, ref_lat):
+    earth_radius = 6378137.0
+    meters_per_deg_lat = math.pi * earth_radius / 180.0
+    meters_per_deg_lon = meters_per_deg_lat * math.cos(math.radians(ref_lat))
+    return [(float(lon) * meters_per_deg_lon, float(lat) * meters_per_deg_lat) for lon, lat in coords]
+
+
+def polygon_area_m2(projected_ring):
+    if len(projected_ring) < 3:
+        return 0.0
+    area = 0.0
+    for i, (x1, y1) in enumerate(projected_ring):
+        x2, y2 = projected_ring[(i + 1) % len(projected_ring)]
+        area += x1 * y2 - x2 * y1
+    return abs(area) / 2.0
+
+
+def is_point_inside_convex_edge(point, edge_start, edge_end, orientation):
+    px, py = point
+    ax, ay = edge_start
+    bx, by = edge_end
+    cross = (bx - ax) * (py - ay) - (by - ay) * (px - ax)
+    return cross * orientation >= -1e-9
+
+
+def line_intersection(a1, a2, b1, b2):
+    x1, y1 = a1
+    x2, y2 = a2
+    x3, y3 = b1
+    x4, y4 = b2
+    den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
+    if abs(den) < 1e-12:
+        return a2
+    px = ((x1 * y2 - y1 * x2) * (x3 - x4) - (x1 - x2) * (x3 * y4 - y3 * x4)) / den
+    py = ((x1 * y2 - y1 * x2) * (y3 - y4) - (y1 - y2) * (x3 * y4 - y3 * x4)) / den
+    return px, py
+
+
+def is_convex(projected_polygon):
+    pts = projected_polygon[:-1] if projected_polygon[0] == projected_polygon[-1] else projected_polygon
+    if len(pts) < 3:
+        return False
+    signs = []
+    for i in range(len(pts)):
+        ax, ay = pts[i]
+        bx, by = pts[(i + 1) % len(pts)]
+        cx, cy = pts[(i + 2) % len(pts)]
+        cross = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax)
+        if abs(cross) > 1e-9:
+            signs.append(cross > 0)
+    return bool(signs) and all(s == signs[0] for s in signs)
+
+
+def clip_polygon_by_convex(subject, clipper):
+    """Sutherland-Hodgman。選択範囲が凸ポリゴンのときに建物外形を切り抜く。"""
+    clip_pts = clipper[:-1] if clipper and clipper[0] == clipper[-1] else clipper
+    output = subject[:-1] if subject and subject[0] == subject[-1] else subject
+    if len(output) < 3 or len(clip_pts) < 3:
+        return []
+
+    orientation = 1.0 if _signed_area(clip_pts) >= 0 else -1.0
+    for i, edge_start in enumerate(clip_pts):
+        edge_end = clip_pts[(i + 1) % len(clip_pts)]
+        input_pts = output
+        output = []
+        if not input_pts:
+            break
+        prev = input_pts[-1]
+        prev_inside = is_point_inside_convex_edge(prev, edge_start, edge_end, orientation)
+        for curr in input_pts:
+            curr_inside = is_point_inside_convex_edge(curr, edge_start, edge_end, orientation)
+            if curr_inside:
+                if not prev_inside:
+                    output.append(line_intersection(prev, curr, edge_start, edge_end))
+                output.append(curr)
+            elif prev_inside:
+                output.append(line_intersection(prev, curr, edge_start, edge_end))
+            prev = curr
+            prev_inside = curr_inside
+    return output
+
+
+def _signed_area(projected_ring):
+    area = 0.0
+    for i, (x1, y1) in enumerate(projected_ring):
+        x2, y2 = projected_ring[(i + 1) % len(projected_ring)]
+        area += x1 * y2 - x2 * y1
+    return area / 2.0
+
+
+def approximate_intersection_area(subject, clipper, cell_size=1.0):
+    from matplotlib.path import Path as MplPath
+
+    if len(subject) < 3 or len(clipper) < 3:
+        return 0.0
+    sx = [p[0] for p in subject]
+    sy = [p[1] for p in subject]
+    min_x, max_x = max(min(sx), min(p[0] for p in clipper)), min(max(sx), max(p[0] for p in clipper))
+    min_y, max_y = max(min(sy), min(p[1] for p in clipper)), min(max(sy), max(p[1] for p in clipper))
+    if min_x >= max_x or min_y >= max_y:
+        return 0.0
+
+    width = max_x - min_x
+    height = max_y - min_y
+    nx = max(1, min(160, int(math.ceil(width / cell_size))))
+    ny = max(1, min(160, int(math.ceil(height / cell_size))))
+    xs = np.linspace(min_x + width / (2 * nx), max_x - width / (2 * nx), nx)
+    ys = np.linspace(min_y + height / (2 * ny), max_y - height / (2 * ny), ny)
+    xx, yy = np.meshgrid(xs, ys)
+    points = np.column_stack([xx.ravel(), yy.ravel()])
+    subject_path = MplPath(subject)
+    clipper_path = MplPath(clipper)
+    inside = subject_path.contains_points(points) & clipper_path.contains_points(points)
+    return float(inside.sum()) * (width / nx) * (height / ny)
+
+
+def building_ring_area_in_polygon(building_ring, selected_polygon, ref_lat):
+    selected_projected = project_lonlat(selected_polygon, ref_lat)
+    building_projected = project_lonlat(building_ring, ref_lat)
+    if is_convex(selected_projected):
+        clipped = clip_polygon_by_convex(building_projected, selected_projected)
+        return polygon_area_m2(clipped)
+    return approximate_intersection_area(building_projected, selected_projected)
+
+
+def analyze_buildings(polygon_coords, total_area_m2):
+    if not BUILDINGS:
+        return {
+            "available": False,
+            "source": BUILDINGS_SOURCE,
+            "count": 0,
+            "area_m2": 0.0,
+            "area_ha": 0.0,
+            "coverage_percent": 0.0,
+            "note": "建物外形データは未収録です。data/buildings.geojson を追加すると集計できます。",
+        }
+
+    selected_bbox = polygon_bbox(polygon_coords)
+    ref_lat = (selected_bbox[1] + selected_bbox[3]) / 2
+    building_count = 0
+    area_m2 = 0.0
+
+    for building in BUILDINGS:
+        if not _bbox_intersects(building["bbox"], selected_bbox):
+            continue
+        exterior_area = building_ring_area_in_polygon(building["exterior"], polygon_coords, ref_lat)
+        hole_area = sum(building_ring_area_in_polygon(hole, polygon_coords, ref_lat) for hole in building["holes"])
+        clipped_area = max(0.0, exterior_area - hole_area)
+        if clipped_area > 0:
+            building_count += 1
+            area_m2 += clipped_area
+
+    return {
+        "available": True,
+        "source": BUILDINGS_SOURCE,
+        "count": building_count,
+        "area_m2": round(area_m2, 1),
+        "area_ha": round(area_m2 / 10000, 4),
+        "coverage_percent": round(area_m2 / total_area_m2 * 100, 2) if total_area_m2 > 0 else 0.0,
+        "note": "",
+    }
+
+
+def buildings_geojson_for_bbox(bbox):
+    features = []
+    for building in BUILDINGS:
+        if not _bbox_intersects(building["bbox"], bbox):
+            continue
+        coords = [building["exterior"], *building["holes"]]
+        features.append({
+            "type": "Feature",
+            "properties": building["properties"],
+            "geometry": {"type": "Polygon", "coordinates": coords},
+        })
+    return {
+        "type": "FeatureCollection",
+        "features": features,
+        "meta": {"available": True, "source": BUILDINGS_SOURCE},
+    }
 
 
 def analyze_polygon(polygon_coords):
@@ -296,6 +563,8 @@ header small {{ font-size: 12px; opacity: 0.75; }}
 #btn-analyze:hover {{ background: #1a6fa0; }}
 #btn-analyze:disabled {{ background: #95a5a6; cursor: not-allowed; }}
 #btn-clear {{ background: #e74c3c; color: #fff; border: none; padding: 9px 14px; border-radius: 5px; font-size: 13px; cursor: pointer; }}
+#layer-controls {{ display: flex; align-items: center; gap: 10px; font-size: 13px; color: #34495e; }}
+#building-status {{ color: #7f8c8d; font-size: 12px; }}
 #results {{ padding: 20px; display: none; }}
 #results h2 {{ font-size: 16px; margin-bottom: 12px; color: #1a5276; }}
 #err-msg {{ background: #fdedec; border-left: 4px solid #e74c3c; padding: 12px 16px; border-radius: 4px; font-size: 14px; white-space: pre-wrap; display: none; margin: 12px 20px; }}
@@ -313,6 +582,8 @@ tr:nth-child(even) td {{ background: #f8fafc; }}
 #btn-csv:hover {{ background: #0e6655; }}
 .info.legend {{ background: white; padding: 8px 12px; border-radius: 6px; line-height: 22px; font-size: 12px; box-shadow: 0 1px 5px rgba(0,0,0,0.4); }}
 .info.legend i {{ width: 14px; height: 14px; display: inline-block; margin-right: 6px; border-radius: 3px; vertical-align: middle; }}
+#building-summary {{ background: #f8fafc; border-left: 4px solid #7f8c8d; padding: 10px 14px; margin: 10px 0 14px; font-size: 13px; line-height: 1.6; }}
+#building-summary.available {{ border-left-color: #8e44ad; }}
 </style>
 </head>
 <body>
@@ -332,6 +603,10 @@ tr:nth-child(even) td {{ background: #f8fafc; }}
     <button class="btn-draw" id="btn-rect">&#9645; 長方形で指定</button>
   </div>
   <span id="status">地図上に解析エリアを描いてください</span>
+  <div id="layer-controls">
+    <label><input type="checkbox" id="chk-buildings"> 建物レイヤー</label>
+    <span id="building-status">未読込</span>
+  </div>
   <button id="btn-analyze" disabled>傾斜を解析する</button>
   <button id="btn-clear">クリア</button>
 </div>
@@ -343,6 +618,7 @@ tr:nth-child(even) td {{ background: #f8fafc; }}
     <label><input type="checkbox" id="chk-overlay" checked> 地図にオーバーレイ表示</label>
     <span>透明度: <input type="range" id="overlay-opacity" min="0" max="100" value="60" style="width:100px;vertical-align:middle;"> <span id="opacity-val">60</span>%</span>
   </div>
+  <div id="building-summary"></div>
   <table id="stats-table">
     <thead><tr><th>傾斜区分</th><th>面積 (ha)</th><th>面積 (m²)</th><th>割合 (%)</th></tr></thead>
     <tbody></tbody>
@@ -460,13 +736,79 @@ var polygonDrawOpts = {{
 // ===== 地図初期化 =====
 var map = L.map('map').setView([36.85, 140.67], 17);
 
-L.tileLayer('http://127.0.0.1:{PORT}/tiles/{{z}}/{{x}}/{{y}}.png', {{
+L.tileLayer('/tiles/{{z}}/{{x}}/{{y}}.png', {{
   minZoom: 10,
   maxNativeZoom: 17,
   maxZoom: 17,
   attribution: '© 国土地理院（淡色地図・標準地図）',
   tileSize: 256
 }}).addTo(map);
+
+var buildingLayer = L.geoJSON(null, {{
+  style: function() {{
+    return {{ color: '#8e44ad', weight: 1, fillColor: '#9b59b6', fillOpacity: 0.22 }};
+  }},
+  interactive: false
+}});
+var buildingLayerLoaded = false;
+var buildingFetchTimer = null;
+
+function setBuildingStatus(msg) {{
+  document.getElementById('building-status').textContent = msg;
+}}
+
+function fetchBuildingsForView() {{
+  if (!document.getElementById('chk-buildings').checked) return;
+  var b = map.getBounds();
+  var bbox = [
+    b.getWest().toFixed(7),
+    b.getSouth().toFixed(7),
+    b.getEast().toFixed(7),
+    b.getNorth().toFixed(7)
+  ].join(',');
+  setBuildingStatus('読込中...');
+  fetch('/buildings?bbox=' + encodeURIComponent(bbox))
+    .then(function(r) {{ return r.json(); }})
+    .then(function(data) {{
+      buildingLayer.clearLayers();
+      if (data.error) {{
+        setBuildingStatus(data.error);
+        return;
+      }}
+      if (data.meta && data.meta.available === false) {{
+        setBuildingStatus('未収録');
+        return;
+      }}
+      buildingLayer.addData(data);
+      setBuildingStatus(data.features.length ? data.features.length + '件表示' : '範囲内なし');
+    }})
+    .catch(function(e) {{
+      setBuildingStatus('読込エラー: ' + e.message);
+    }});
+}}
+
+function scheduleBuildingFetch() {{
+  if (buildingFetchTimer) clearTimeout(buildingFetchTimer);
+  buildingFetchTimer = setTimeout(fetchBuildingsForView, 200);
+}}
+
+document.getElementById('chk-buildings').onchange = function() {{
+  if (this.checked) {{
+    if (!map.hasLayer(buildingLayer)) buildingLayer.addTo(map);
+    buildingLayerLoaded = true;
+    fetchBuildingsForView();
+  }} else {{
+    if (map.hasLayer(buildingLayer)) map.removeLayer(buildingLayer);
+    buildingLayer.clearLayers();
+    setBuildingStatus('非表示');
+  }}
+}};
+
+map.on('moveend zoomend', function() {{
+  if (buildingLayerLoaded && document.getElementById('chk-buildings').checked) {{
+    scheduleBuildingFetch();
+  }}
+}});
 
 // ===== 描画ツール =====
 var drawnItems = new L.FeatureGroup();
@@ -603,7 +945,7 @@ document.getElementById('btn-analyze').onclick = function() {{
       return;
     }}
     currentStats = data.stats;
-    currentMeta  = data.meta;
+    currentMeta  = Object.assign({{}}, data.meta, {{ buildings: data.buildings }});
     showResults(data);
     setStatus('解析完了');
   }})
@@ -689,6 +1031,18 @@ function showResults(data) {{
   }}
 
   var m = data.meta;
+  var b = data.buildings || null;
+  var bEl = document.getElementById('building-summary');
+  if (b && b.available) {{
+    bEl.className = 'available';
+    bEl.textContent = '建物面積: ' + b.area_ha.toFixed(4) + ' ha（' +
+      b.area_m2.toLocaleString() + ' m²） / 建物棟数: ' + b.count.toLocaleString() +
+      ' / 選択範囲に占める割合: ' + b.coverage_percent + '% / 出典ファイル: ' + b.source;
+  }} else {{
+    bEl.className = '';
+    bEl.textContent = b && b.note ? b.note : '建物外形データは未収録です。';
+  }}
+
   var metaParts = [
     '解析範囲: N' + m.north.toFixed(4) + ' S' + m.south.toFixed(4) +
       ' W' + m.west.toFixed(4) + ' E' + m.east.toFixed(4),
@@ -706,42 +1060,80 @@ function showResults(data) {{
 }}
 
 // ===== CSV ダウンロード =====
+function csvCell(value) {{
+  var text = String(value == null ? '' : value);
+  if (text.indexOf('"') !== -1 || text.indexOf(',') !== -1 ||
+      text.indexOf(String.fromCharCode(13)) !== -1 ||
+      text.indexOf(String.fromCharCode(10)) !== -1) {{
+    return '"' + text.replace(/"/g, '""') + '"';
+  }}
+  return text;
+}}
+
+function csvLine(values) {{
+  return values.map(csvCell).join(',');
+}}
+
+function csvTimestamp() {{
+  function pad(n) {{ return String(n).padStart(2, '0'); }}
+  var d = new Date();
+  return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+    '_' + pad(d.getHours()) + '-' + pad(d.getMinutes()) + '-' + pad(d.getSeconds());
+}}
+
 document.getElementById('btn-csv').onclick = function() {{
   if (!currentStats || !currentMeta) return;
   var m = currentMeta;
   var now = new Date().toLocaleString('ja-JP');
   var lines = [
-    '﻿傾斜区分,面積(ha),面積(m2),割合(%)',  // BOM付き
+    '傾斜区分,面積(ha),面積(m2),割合(%)',
   ];
   currentStats.forEach(function(s) {{
-    lines.push([s.name, (s.area_m2/10000).toFixed(3), s.area_m2, s.percent].join(','));
+    lines.push(csvLine([s.name, (s.area_m2/10000).toFixed(3), s.area_m2, s.percent]));
   }});
   lines.push('');
   lines.push('# 解析情報');
-  lines.push('解析日時,' + now);
-  lines.push('集計面積(ha),' + m.area_ha.toFixed(2));
-  lines.push('解析範囲N,' + m.north.toFixed(6));
-  lines.push('解析範囲S,' + m.south.toFixed(6));
-  lines.push('解析範囲W,' + m.west.toFixed(6));
-  lines.push('解析範囲E,' + m.east.toFixed(6));
-  lines.push('傾斜計算方式,' + m.slope_method);
-  lines.push('DEM格子寸法X(m),' + m.pixel_size_x.toFixed(3));
-  lines.push('DEM格子寸法Y(m),' + m.pixel_size_y.toFixed(3));
+  lines.push(csvLine(['解析日時', now]));
+  lines.push(csvLine(['集計面積(ha)', m.area_ha.toFixed(2)]));
+  lines.push(csvLine(['解析範囲N', m.north.toFixed(6)]));
+  lines.push(csvLine(['解析範囲S', m.south.toFixed(6)]));
+  lines.push(csvLine(['解析範囲W', m.west.toFixed(6)]));
+  lines.push(csvLine(['解析範囲E', m.east.toFixed(6)]));
+  lines.push(csvLine(['傾斜計算方式', m.slope_method]));
+  lines.push(csvLine(['DEM格子寸法X(m)', m.pixel_size_x.toFixed(3)]));
+  lines.push(csvLine(['DEM格子寸法Y(m)', m.pixel_size_y.toFixed(3)]));
   if (m.mean_slope != null) {{
-    lines.push('平均傾斜(deg),' + m.mean_slope);
-    lines.push('最大傾斜(deg),' + m.max_slope);
+    lines.push(csvLine(['平均傾斜(deg)', m.mean_slope]));
+    lines.push(csvLine(['最大傾斜(deg)', m.max_slope]));
   }}
   if (m.elev_min != null) {{
-    lines.push('最低標高(m),' + m.elev_min);
-    lines.push('最高標高(m),' + m.elev_max);
-    lines.push('平均標高(m),' + m.elev_mean);
+    lines.push(csvLine(['最低標高(m)', m.elev_min]));
+    lines.push(csvLine(['最高標高(m)', m.elev_max]));
+    lines.push(csvLine(['平均標高(m)', m.elev_mean]));
+  }}
+  if (m.buildings) {{
+    lines.push('');
+    lines.push('# 建物面積');
+    lines.push(csvLine(['建物データ', m.buildings.available ? 'あり' : '未収録']));
+    lines.push(csvLine(['建物データファイル', m.buildings.source]));
+    lines.push(csvLine(['建物棟数', m.buildings.count]));
+    lines.push(csvLine(['建物面積(ha)', m.buildings.area_ha]));
+    lines.push(csvLine(['建物面積(m2)', m.buildings.area_m2]));
+    lines.push(csvLine(['建物割合(%)', m.buildings.coverage_percent]));
   }}
 
-  var blob = new Blob([lines.join('\\r\\n')], {{ type: 'text/csv;charset=utf-8;' }});
+  var blob = new Blob(['\\ufeff' + lines.join('\\r\\n')], {{ type: 'text/csv;charset=utf-8;' }});
+  var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = '傾斜区分分析_' + now.replace(/[:/\\s]/g, '-') + '.csv';
+  a.href = url;
+  a.download = '傾斜区分分析_' + csvTimestamp() + '.csv';
+  a.style.display = 'none';
+  document.body.appendChild(a);
   a.click();
+  setTimeout(function() {{
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }}, 100);
 }};
 </script>
 </body>
@@ -754,7 +1146,8 @@ document.getElementById('btn-csv').onclick = function() {{
 class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        if self.path == "/":
+        parsed = urlparse(self.path)
+        if parsed.path == "/":
             body = HTML.encode("utf-8")
             self.send_response(HTTPStatus.OK)
             self.send_header("Content-Type", "text/html; charset=utf-8")
@@ -762,8 +1155,11 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
 
-        elif self.path.startswith("/tiles/"):
+        elif parsed.path.startswith("/tiles/"):
             self._serve_tile()
+
+        elif parsed.path == "/buildings":
+            self._serve_buildings(parsed.query)
 
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
@@ -775,7 +1171,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def _serve_tile(self):
-        parts = self.path[len("/tiles/"):].split("/")
+        parsed = urlparse(self.path)
+        parts = parsed.path[len("/tiles/"):].split("/")
         if len(parts) != 3:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -796,6 +1193,27 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.send_error(HTTPStatus.NOT_FOUND)
 
+    def _serve_buildings(self, query):
+        if not BUILDINGS:
+            self._send_json(HTTPStatus.OK, {
+                "type": "FeatureCollection",
+                "features": [],
+                "meta": {"available": False, "source": BUILDINGS_SOURCE},
+            })
+            return
+
+        params = parse_qs(query)
+        bbox_text = params.get("bbox", [""])[0]
+        try:
+            parts = [float(x) for x in bbox_text.split(",")]
+            if len(parts) != 4:
+                raise ValueError
+            west, south, east, north = parts
+        except ValueError:
+            west, south, east, north = DEM_BOUNDS[2], DEM_BOUNDS[1], DEM_BOUNDS[3], DEM_BOUNDS[0]
+
+        self._send_json(HTTPStatus.OK, buildings_geojson_for_bbox((west, south, east, north)))
+
     def _handle_analyze(self):
         try:
             length  = int(self.headers.get("Content-Length", "0"))
@@ -810,11 +1228,13 @@ class Handler(BaseHTTPRequestHandler):
 
             chart_b64   = make_pie_chart(stats)
             overlay_b64 = make_overlay_png(classified, mask, sh, sw2)
+            building_stats = analyze_buildings(polygon, area_m2)
 
             self._send_json(HTTPStatus.OK, {
                 "stats":       stats,
                 "chart_b64":   chart_b64,
                 "overlay_b64": overlay_b64,
+                "buildings":   building_stats,
                 "meta": {
                     "north":      round(sn, 6),
                     "south":      round(ss, 6),
