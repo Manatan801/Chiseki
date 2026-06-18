@@ -401,6 +401,62 @@ L.drawLocal.edit.handlers.edit.tooltip.text    = '頂点をドラッグして編
 L.drawLocal.edit.handlers.edit.tooltip.subtext = 'クリックで元に戻す';
 L.drawLocal.edit.handlers.remove.tooltip.text  = 'クリックで削除';
 
+// ===== アプリ側ポリゴン描画パッチ =====
+var polygonVertexIcon = new L.DivIcon({{
+  iconSize: new L.Point(4, 4),
+  className: 'leaflet-div-icon leaflet-editing-icon'
+}});
+var polygonTouchVertexIcon = new L.DivIcon({{
+  iconSize: new L.Point(10, 10),
+  className: 'leaflet-div-icon leaflet-editing-icon leaflet-touch-icon'
+}});
+var polygonDrawOpts = {{
+  shapeOptions: {{ color: '#2980b9', fillOpacity: 0.2 }},
+  icon: polygonVertexIcon,
+  touchIcon: polygonTouchVertexIcon
+}};
+
+(function() {{
+  var origAddHooks = L.Draw.Polygon.prototype.addHooks;
+  var origRemoveHooks = L.Draw.Polygon.prototype.removeHooks;
+
+  function removeOnlyVertex(drawer) {{
+    if (!drawer._markers || drawer._markers.length !== 1) return false;
+
+    var marker = drawer._markers.pop();
+    marker.off('click', drawer._finishShape, drawer);
+    drawer._markerGroup.removeLayer(marker);
+    drawer._poly.setLatLngs([]);
+    drawer._measurementRunningTotal = 0;
+    drawer._area = 0;
+    drawer._clearGuides();
+    drawer._updateTooltip();
+    drawer._map.fire(L.Draw.Event.DRAWVERTEX, {{ layers: drawer._markerGroup }});
+    return true;
+  }}
+
+  L.Draw.Polygon.prototype.addHooks = function() {{
+    origAddHooks.call(this);
+    if (this._map) this._map.on('contextmenu', this._undoLastVertexByContextMenu, this);
+  }};
+
+  L.Draw.Polygon.prototype.removeHooks = function() {{
+    if (this._map) this._map.off('contextmenu', this._undoLastVertexByContextMenu, this);
+    origRemoveHooks.call(this);
+  }};
+
+  L.Draw.Polygon.prototype._undoLastVertexByContextMenu = function(e) {{
+    if (e && e.originalEvent) L.DomEvent.preventDefault(e.originalEvent);
+    if (!this._markers || this._markers.length === 0) return;
+
+    if (this._markers.length === 1) {{
+      removeOnlyVertex(this);
+    }} else {{
+      this.deleteLastVertex();
+    }}
+  }};
+}})();
+
 // ===== 地図初期化 =====
 var map = L.map('map').setView([36.85, 140.67], 17);
 
@@ -419,7 +475,7 @@ map.addLayer(drawnItems);
 var drawControl = new L.Control.Draw({{
   edit: {{ featureGroup: drawnItems }},
   draw: {{
-    polygon:      {{ shapeOptions: {{ color: '#2980b9', fillOpacity: 0.2 }} }},
+    polygon:      polygonDrawOpts,
     rectangle:    {{ shapeOptions: {{ color: '#2980b9', fillOpacity: 0.2 }} }},
     polyline: false, circle: false, marker: false, circlemarker: false
   }}
@@ -434,7 +490,6 @@ var currentMeta    = null;
 var activeDrawer   = null;
 
 // ===== 日本語ボタンから描画を直接起動 =====
-var polygonDrawOpts  = {{ shapeOptions: {{ color: '#2980b9', fillOpacity: 0.2 }} }};
 var rectangleDrawOpts= {{ shapeOptions: {{ color: '#2980b9', fillOpacity: 0.2 }} }};
 
 function cancelActiveDrawer() {{
@@ -448,7 +503,7 @@ document.getElementById('btn-polygon').onclick = function() {{
   activeDrawer = new L.Draw.Polygon(map, polygonDrawOpts);
   activeDrawer.enable();
   this.classList.add('active');
-  setStatus('クリックで頂点を追加 / ダブルクリックで完了');
+  setStatus('クリックで頂点を追加 / 右クリックで1点戻る / ダブルクリックで完了');
 }};
 
 document.getElementById('btn-rect').onclick = function() {{
@@ -463,6 +518,12 @@ document.getElementById('btn-rect').onclick = function() {{
 function setStatus(msg) {{
   document.getElementById('status').textContent = msg;
 }}
+
+map.on(L.Draw.Event.DRAWSTART, function(e) {{
+  if (e.layerType === 'polygon') {{
+    setStatus('クリックで頂点を追加 / 右クリックで1点戻る / ダブルクリックで完了');
+  }}
+}});
 
 map.on(L.Draw.Event.CREATED, function(e) {{
   drawnItems.clearLayers();
