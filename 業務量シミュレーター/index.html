@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>地籍調査 業務量シミュレーター｜北茨城市</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: "Yu Gothic", "游ゴシック", Meiryo, "メイリオ", "Hiragino Kaku Gothic ProN", sans-serif;
+    }
+    .accordion-content {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+    .accordion-content.open {
+      max-height: 2000px;
+      transition: max-height 0.5s ease-in;
+    }
+    .accordion-icon {
+      transition: transform 0.3s ease;
+    }
+    .accordion-icon.open {
+      transform: rotate(180deg);
+    }
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button {
+      opacity: 1;
+    }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              600: '#1e40af',
+              700: '#1d4ed8',
+              800: '#1e3a8a',
+              900: '#1e3060',
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ヘッダー -->
+  <header class="bg-[#1e3a8a] text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+      <div class="flex items-center gap-3">
+        <div class="bg-white bg-opacity-20 rounded-lg p-2">
+          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold tracking-wide">地籍調査 業務量シミュレーター</h1>
+          <p class="text-blue-200 text-sm mt-0.5">北茨城市 ／ 習熟度定着モデル（R5〜R7実績）</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+      <!-- ===== 左カラム：設定パネル ===== -->
+      <div class="lg:col-span-1 space-y-4">
+
+        <!-- 入力カード -->
+        <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div class="bg-[#1e3a8a] px-5 py-3">
+            <h2 class="text-white font-semibold text-base flex items-center gap-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 4a2 2 0 100 4m0-4a2 2 0 110 4m6-6a2 2 0 100 4m0-4a2 2 0 110 4"/>
+              </svg>
+              パラメータ設定
+            </h2>
+          </div>
+          <div class="p-5 space-y-5">
+
+            <!-- 地区面積 -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">
+                地区面積
+                <span class="text-xs font-normal text-gray-500 ml-1">（$A_{input}$）</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="inputArea"
+                  value="80"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="例：80"
+                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 pr-12 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">ha</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">傾斜・地形による実効作業面積</p>
+            </div>
+
+            <!-- 調査前筆数 -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">
+                調査前筆数
+                <span class="text-xs font-normal text-gray-500 ml-1">（$N_{before}$）</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="inputFude"
+                  value="1000"
+                  min="1"
+                  step="1"
+                  placeholder="例：1000"
+                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 pr-12 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">筆</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">調査開始前の登記簿上の筆数</p>
+            </div>
+
+            <!-- α係数 -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">
+                α係数（傾斜・地形補正）
+                <span class="text-xs font-normal text-gray-500 ml-1">（$\alpha$）</span>
+              </label>
+              <input
+                type="number"
+                id="inputAlpha"
+                value="1.25"
+                min="0.1"
+                step="0.01"
+                placeholder="例：1.25"
+                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+              />
+              <p class="text-xs text-gray-400 mt-1">平坦地：1.00、丘陵地：1.25、山地：1.50 目安</p>
+            </div>
+
+            <!-- エラー表示 -->
+            <div id="errorMsg" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"></div>
+
+            <!-- 計算実行ボタン -->
+            <button
+              id="calcBtn"
+              onclick="runCalc()"
+              class="w-full bg-[#1e3a8a] hover:bg-blue-900 text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 text-base shadow-md"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+              </svg>
+              計算実行
+            </button>
+          </div>
+        </div>
+
+        <!-- α係数の目安カード -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <h3 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            α係数の目安
+          </h3>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between items-center py-1 border-b border-gray-100">
+              <span class="text-gray-600">平坦地・市街地</span>
+              <span class="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded">1.00</span>
+            </div>
+            <div class="flex justify-between items-center py-1 border-b border-gray-100">
+              <span class="text-gray-600">丘陵地（起伏中程度）</span>
+              <span class="font-semibold text-orange-700 bg-orange-50 px-2 py-0.5 rounded">1.25</span>
+            </div>
+            <div class="flex justify-between items-center py-1">
+              <span class="text-gray-600">山地・急斜面</span>
+              <span class="font-semibold text-red-700 bg-red-50 px-2 py-0.5 rounded">1.50</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ===== 右カラム：出力パネル ===== -->
+      <div class="lg:col-span-2 space-y-5" id="outputPanel">
+
+        <!-- 計算待ちプレースホルダー（初期は非表示・計算後に消える） -->
+        <div id="placeholder" class="hidden bg-white rounded-xl shadow-md border border-gray-200 p-8 text-center text-gray-400">
+          <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+          <p class="text-sm">パラメータを入力し「計算実行」ボタンを押してください</p>
+        </div>
+
+        <!-- ===== サマリーカード ===== -->
+        <div id="summarySection" class="hidden">
+          <!-- 標準ケース（最強調） -->
+          <div class="bg-[#1e3a8a] rounded-xl shadow-lg text-white p-6 mb-4">
+            <div class="flex items-start justify-between">
+              <div>
+                <p class="text-blue-200 text-sm font-medium mb-1">標準ケース（推奨計画値）</p>
+                <div class="flex items-baseline gap-2">
+                  <span id="stdDays" class="text-5xl font-bold tracking-tight">—</span>
+                  <span class="text-2xl text-blue-200">日</span>
+                </div>
+                <p class="text-blue-300 text-sm mt-2">調査後筆数：<span id="stdFude" class="text-white font-semibold">—</span> 筆（残存率 69%）</p>
+              </div>
+              <div class="bg-white bg-opacity-10 rounded-lg p-3 text-right">
+                <p class="text-blue-200 text-xs">R5〜R7 過去平均</p>
+                <p class="text-white text-sm font-semibold mt-1">合筆率 31%</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 楽観・悲観サブカード -->
+          <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-xl shadow-md border-l-4 border-green-500 p-4">
+              <p class="text-green-700 text-xs font-semibold mb-1">楽観ケース（合筆スムーズ）</p>
+              <div class="flex items-baseline gap-1">
+                <span id="optDays" class="text-3xl font-bold text-green-700">—</span>
+                <span class="text-gray-500 text-sm">日</span>
+              </div>
+              <p class="text-gray-500 text-xs mt-1">調査後 <span id="optFude" class="font-medium text-gray-700">—</span> 筆（残存率 62%）</p>
+            </div>
+            <div class="bg-white rounded-xl shadow-md border-l-4 border-red-500 p-4">
+              <p class="text-red-700 text-xs font-semibold mb-1">悲観ケース（権利複雑）</p>
+              <div class="flex items-baseline gap-1">
+                <span id="pesDays" class="text-3xl font-bold text-red-700">—</span>
+                <span class="text-gray-500 text-sm">日</span>
+              </div>
+              <p class="text-gray-500 text-xs mt-1">調査後 <span id="pesFude" class="font-medium text-gray-700">—</span> 筆（残存率 82%）</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== シナリオ比較テーブル ===== -->
+        <div id="tableSection" class="hidden bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div class="bg-gray-50 px-5 py-3 border-b border-gray-200">
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H4a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+              </svg>
+              シナリオ別 詳細比較
+            </h2>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-gray-50 text-gray-600 text-xs">
+                  <th class="px-4 py-3 text-left font-semibold">ケース</th>
+                  <th class="px-4 py-3 text-right font-semibold">残存率</th>
+                  <th class="px-4 py-3 text-right font-semibold">調査後筆数</th>
+                  <th class="px-4 py-3 text-right font-semibold">推計調査日数</th>
+                  <th class="px-4 py-3 text-right font-semibold">1筆あたり<br>日数目安</th>
+                </tr>
+              </thead>
+              <tbody id="tableBody" class="divide-y divide-gray-100">
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ===== Chart.js グラフ ===== -->
+        <div id="chartSection" class="hidden bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div class="bg-gray-50 px-5 py-3 border-b border-gray-200">
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              シナリオ別 推計調査日数（内訳スタック）
+            </h2>
+          </div>
+          <div class="p-5">
+            <canvas id="mainChart" height="220"></canvas>
+          </div>
+        </div>
+
+        <!-- ===== 内訳詳細アコーディオン ===== -->
+        <div id="accordionSection" class="hidden bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <button
+            onclick="toggleAccordion('breakdown')"
+            class="w-full bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+              </svg>
+              計算内訳・寄与分析（クリックで展開）
+            </h2>
+            <svg id="icon-breakdown" class="accordion-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="content-breakdown" class="accordion-content">
+            <div class="p-5 space-y-4" id="breakdownContent"></div>
+          </div>
+        </div>
+
+        <!-- ===== 法的背景・モデル解説アコーディオン ===== -->
+        <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <button
+            onclick="toggleAccordion('legal')"
+            class="w-full bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+              </svg>
+              法的根拠・数理モデル解説（クリックで展開）
+            </h2>
+            <svg id="icon-legal" class="accordion-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="content-legal" class="accordion-content">
+            <div class="p-5 space-y-4 text-sm text-gray-700">
+
+              <div>
+                <h3 class="font-semibold text-gray-800 mb-2 text-base">1. 法的・実務的根拠</h3>
+                <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 space-y-2">
+                  <p><strong class="text-blue-800">国土調査法</strong> 第2条第1項第3号・第17条等に基づく地籍調査において、実働の最大のボトルネックは「一筆地調査（現地立会い・境界確認）」およびこれに伴う関係権利者の探索・調整です（地籍調査作業規程準則 第30条〜第42条）。</p>
+                  <p><strong class="text-blue-800">合筆の制限</strong>（不動産登記法第39条）：所有者・地目が異なる場合、抵当権等の登記がある場合などは法的に合筆できないため、実際の合筆進捗は「地域ごとの権利関係の歴史」に依存します。このため、本ツールは3シナリオによる統計幅推計を採用しています。</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="font-semibold text-gray-800 mb-2 text-base">2. 習熟度定着モデルの採用</h3>
+                <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4">
+                  <p>R5〜R7年度の実績データ分析に基づき、人事異動等による調査員の習熟度変化を踏まえた「<strong>習熟度定着モデル</strong>」を採用しています。不慣れな職員が一定ペースで継続する現状のチーム能力を前提とすることで、計画段階での予算・工程の破綻を防ぐ<strong>現実的な推計</strong>を行います。</p>
+                </div>
+              </div>
+
+              <div>
+                <h3 class="font-semibold text-gray-800 mb-2 text-base">3. 推計式（業務量計算モデル）</h3>
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-sm">
+                  <p class="text-gray-800 font-semibold mb-2">W = (151.14 × A + 0.437 × N_after) × α</p>
+                  <div class="text-gray-600 space-y-1 text-xs">
+                    <p>W：推計調査日数</p>
+                    <p>A：地区面積（内部単位、入力値 ha ÷ 100）</p>
+                    <p>N_after：調査後筆数（合筆後）</p>
+                    <p>α：傾斜・地形区分による平均補正係数</p>
+                  </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">※ 係数 151.14 は面積あたりの現地作業負荷、0.437 は1筆あたりの書類・事務作業時間を表します（R5〜R7実績からの最小二乗推計）。</p>
+              </div>
+
+              <div>
+                <h3 class="font-semibold text-gray-800 mb-2 text-base">4. 調査後筆数のシナリオ設定</h3>
+                <div class="grid grid-cols-3 gap-3 text-xs">
+                  <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <p class="font-semibold text-green-800 mb-1">楽観ケース</p>
+                    <p class="text-green-700">残存率 62%</p>
+                    <p class="text-gray-600 mt-1">過去最高水準の合筆が進んだ場合（R1〜R7の最小値 61.9% 参考）</p>
+                  </div>
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <p class="font-semibold text-blue-800 mb-1">標準ケース</p>
+                    <p class="text-blue-700">残存率 69%</p>
+                    <p class="text-gray-600 mt-1">過去7年の平均的推移（R1〜R7の平均減少率 68.6% 参考）</p>
+                  </div>
+                  <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <p class="font-semibold text-red-800 mb-1">悲観ケース</p>
+                    <p class="text-red-700">残存率 82%</p>
+                    <p class="text-gray-600 mt-1">権利関係が複雑で合筆が進まない場合（R1〜R7の最大値 82.0% 参考）</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                <p class="font-semibold mb-1">※ 住宅地割増係数について</p>
+                <p>住宅地屋根面積割合は、現在のチーム特性において筆数負担の中に包含されるため、モデル上は係数0（影響なし）として処理されます。R5〜R7の実績分析において、この変数の追加による推計精度の向上が確認されなかったことによるものです。</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- フッター -->
+  <footer class="mt-10 bg-gray-800 text-gray-400 text-xs py-4">
+    <div class="max-w-7xl mx-auto px-4 text-center space-y-1">
+      <p>地籍調査 業務量シミュレーター ／ 習熟度定着モデル（R5〜R7実績ベース）</p>
+      <p>本ツールによる推計値は計画立案の参考情報であり、実際の事業日数を保証するものではありません。</p>
+    </div>
+  </footer>
+
+  <script>
+    // ===========================
+    // 数理ロジック（純粋関数）
+    // ===========================
+
+    /**
+     * 1シナリオ分の計算
+     * @param {number} N_before - 調査前筆数
+     * @param {number} A       - 地区面積（内部単位 = A_input / 100）
+     * @param {number} alpha   - α係数
+     * @param {number} ratio   - 調査後筆数残存率（例: 0.69）
+     * @returns {{ N_after, areaPart, fudePart, W }}
+     */
+    function calcScenario(N_before, A, alpha, ratio) {
+      const N_after = Math.round(N_before * ratio);
+      const areaPart = 151.14 * A * alpha;       // 面積基本分（生値）
+      const fudePart = 0.437 * N_after * alpha;  // 筆数事務分（生値）
+      const W = Math.round(areaPart + fudePart);
+      return { N_after, areaPart, fudePart, W };
+    }
+
+    /**
+     * 入力バリデーション
+     * @returns {{ valid: boolean, A_input, N_before, alpha, errorMsg }}
+     */
+    function validateInputs() {
+      const rawArea  = document.getElementById('inputArea').value.trim();
+      const rawFude  = document.getElementById('inputFude').value.trim();
+      const rawAlpha = document.getElementById('inputAlpha').value.trim();
+
+      if (rawArea === '' || rawFude === '' || rawAlpha === '') {
+        return { valid: false, errorMsg: '全ての入力項目を入力してください。' };
+      }
+
+      const A_input = parseFloat(rawArea);
+      const N_before = parseFloat(rawFude);
+      const alpha = parseFloat(rawAlpha);
+
+      if (isNaN(A_input) || isNaN(N_before) || isNaN(alpha)) {
+        return { valid: false, errorMsg: '入力値に数値以外の文字が含まれています。' };
+      }
+      if (A_input <= 0) {
+        return { valid: false, errorMsg: '地区面積は 0 より大きい値を入力してください。' };
+      }
+      if (N_before < 1 || !Number.isInteger(N_before)) {
+        return { valid: false, errorMsg: '調査前筆数は 1 以上の整数を入力してください。' };
+      }
+      if (alpha <= 0) {
+        return { valid: false, errorMsg: 'α係数は 0 より大きい値を入力してください。' };
+      }
+
+      return { valid: true, A_input, N_before: Math.round(N_before), alpha };
+    }
+
+    // ===========================
+    // Chart.js インスタンス管理
+    // ===========================
+    let mainChartInstance = null;
+
+    function renderChart(opt, std, pes) {
+      const ctx = document.getElementById('mainChart').getContext('2d');
+
+      if (mainChartInstance) {
+        mainChartInstance.destroy();
+      }
+
+      mainChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['楽観ケース', '標準ケース', '悲観ケース'],
+          datasets: [
+            {
+              label: '面積基本分（日）',
+              data: [
+                Math.round(opt.areaPart * 10) / 10,
+                Math.round(std.areaPart * 10) / 10,
+                Math.round(pes.areaPart * 10) / 10
+              ],
+              backgroundColor: ['rgba(34,197,94,0.7)', 'rgba(30,58,138,0.7)', 'rgba(239,68,68,0.7)'],
+              borderColor: ['rgba(34,197,94,1)', 'rgba(30,58,138,1)', 'rgba(239,68,68,1)'],
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              label: '筆数事務分（日）',
+              data: [
+                Math.round(opt.fudePart * 10) / 10,
+                Math.round(std.fudePart * 10) / 10,
+                Math.round(pes.fudePart * 10) / 10
+              ],
+              backgroundColor: ['rgba(34,197,94,0.35)', 'rgba(30,58,138,0.35)', 'rgba(239,68,68,0.35)'],
+              borderColor: ['rgba(34,197,94,0.7)', 'rgba(30,58,138,0.7)', 'rgba(239,68,68,0.7)'],
+              borderWidth: 1,
+              borderRadius: 4,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 },
+                padding: 16
+              }
+            },
+            tooltip: {
+              callbacks: {
+                footer: function(tooltipItems) {
+                  const total = tooltipItems.reduce((sum, item) => sum + item.raw, 0);
+                  return '合計: ' + Math.round(total) + ' 日';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              stacked: true,
+              ticks: { font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 } }
+            },
+            y: {
+              stacked: true,
+              beginAtZero: true,
+              title: {
+                display: true,
+                text: '推計調査日数（日）',
+                font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 }
+              },
+              ticks: { font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    // ===========================
+    // UI 更新
+    // ===========================
+
+    function renderTable(opt, std, pes) {
+      const rows = [
+        { label: '楽観ケース', color: 'green', ratio: '62%', data: opt },
+        { label: '標準ケース', color: 'blue',  ratio: '69%', data: std, bold: true },
+        { label: '悲観ケース', color: 'red',   ratio: '82%', data: pes }
+      ];
+
+      const colorMap = {
+        green: { bg: 'bg-green-50', text: 'text-green-700', badge: 'bg-green-100 text-green-800' },
+        blue:  { bg: 'bg-blue-50',  text: 'text-blue-800',  badge: 'bg-blue-100 text-blue-900' },
+        red:   { bg: 'bg-red-50',   text: 'text-red-700',   badge: 'bg-red-100 text-red-800' }
+      };
+
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = rows.map(row => {
+        const c = colorMap[row.color];
+        const perFude = (row.data.W / row.data.N_after).toFixed(2);
+        const boldClass = row.bold ? 'font-bold' : '';
+        return `
+          <tr class="${row.bold ? c.bg : ''}">
+            <td class="px-4 py-3">
+              <span class="${boldClass} ${c.text} text-sm">${row.label}</span>
+            </td>
+            <td class="px-4 py-3 text-right text-sm text-gray-600">${row.ratio}</td>
+            <td class="px-4 py-3 text-right">
+              <span class="${boldClass} text-gray-800 text-sm">${row.data.N_after.toLocaleString()}</span>
+              <span class="text-gray-400 text-xs ml-0.5">筆</span>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="${boldClass} ${c.text} text-base">${row.data.W.toLocaleString()}</span>
+              <span class="text-gray-400 text-xs ml-0.5">日</span>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="text-gray-700 text-sm">${perFude}</span>
+              <span class="text-gray-400 text-xs ml-0.5">日/筆</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderBreakdown(opt, std, pes, A_input, alpha) {
+      const scenarios = [
+        { label: '楽観ケース', data: opt, color: '#22c55e', bgClass: 'bg-green-50 border-green-200' },
+        { label: '標準ケース', data: std, color: '#1e3a8a', bgClass: 'bg-blue-50 border-blue-200' },
+        { label: '悲観ケース', data: pes, color: '#ef4444', bgClass: 'bg-red-50 border-red-200' }
+      ];
+
+      const container = document.getElementById('breakdownContent');
+      container.innerHTML = `
+        <p class="text-xs text-gray-500 mb-3">
+          ※ 内訳は小数第1位表示（四捨五入前の生値）です。合計調査日数は各生値の合算を最終的に四捨五入した値を採用するため、内訳の合計と表示日数が ±1 日程度ずれる場合があります。
+        </p>
+      ` + scenarios.map(s => {
+        const totalRaw = s.data.areaPart + s.data.fudePart;
+        const areaRatio  = (s.data.areaPart / totalRaw * 100).toFixed(1);
+        const fudeRatio  = (s.data.fudePart  / totalRaw * 100).toFixed(1);
+        return `
+          <div class="border rounded-lg ${s.bgClass} p-4">
+            <h4 class="font-semibold text-gray-800 mb-3 text-sm">${s.label}の内訳（計 ${s.data.W} 日）</h4>
+            <div class="space-y-2">
+              <!-- 面積基本分 -->
+              <div>
+                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>面積基本分 <span class="text-gray-400">（151.14 × ${(A_input/100).toFixed(4)} × ${alpha} = ${s.data.areaPart.toFixed(1)} 日）</span></span>
+                  <span class="font-semibold">${areaRatio}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                  <div class="h-3 rounded-full transition-all" style="width:${areaRatio}%; background-color:${s.color}; opacity:0.8"></div>
+                </div>
+              </div>
+              <!-- 筆数事務分 -->
+              <div>
+                <div class="flex justify-between text-xs text-gray-600 mb-1">
+                  <span>筆数事務分 <span class="text-gray-400">（0.437 × ${s.data.N_after} × ${alpha} = ${s.data.fudePart.toFixed(1)} 日）</span></span>
+                  <span class="font-semibold">${fudeRatio}%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                  <div class="h-3 rounded-full transition-all" style="width:${fudeRatio}%; background-color:${s.color}; opacity:0.45"></div>
+                </div>
+              </div>
+              <!-- 住宅地割増分 -->
+              <div>
+                <div class="flex justify-between text-xs text-gray-500 mb-1">
+                  <span>住宅地割増分 <span class="text-gray-400">（係数0 → 0.0 日）</span></span>
+                  <span class="font-semibold">0.0%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3">
+                  <div class="h-3 rounded-full bg-gray-300" style="width:0%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') + `
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+          <p class="font-semibold mb-1">※ 住宅地割増係数について</p>
+          <p>住宅地屋根面積割合は、現在のチーム特性において筆数負担のなかに包含されるため、モデル上は係数0（影響なし）として処理されます。</p>
+        </div>
+      `;
+    }
+
+    function showSections() {
+      document.getElementById('summarySection').classList.remove('hidden');
+      document.getElementById('tableSection').classList.remove('hidden');
+      document.getElementById('chartSection').classList.remove('hidden');
+      document.getElementById('accordionSection').classList.remove('hidden');
+      document.getElementById('placeholder').classList.add('hidden');
+    }
+
+    // ===========================
+    // メイン計算実行
+    // ===========================
+
+    function runCalc() {
+      const errEl = document.getElementById('errorMsg');
+      const validated = validateInputs();
+
+      if (!validated.valid) {
+        errEl.textContent = validated.errorMsg;
+        errEl.classList.remove('hidden');
+        return;
+      }
+      errEl.classList.add('hidden');
+
+      const { A_input, N_before, alpha } = validated;
+      const A = A_input / 100;  // 重要: 内部単位変換
+
+      const opt = calcScenario(N_before, A, alpha, 0.62);
+      const std = calcScenario(N_before, A, alpha, 0.69);
+      const pes = calcScenario(N_before, A, alpha, 0.82);
+
+      // サマリー更新
+      document.getElementById('stdDays').textContent = std.W.toLocaleString();
+      document.getElementById('stdFude').textContent = std.N_after.toLocaleString();
+      document.getElementById('optDays').textContent = opt.W.toLocaleString();
+      document.getElementById('optFude').textContent = opt.N_after.toLocaleString();
+      document.getElementById('pesDays').textContent = pes.W.toLocaleString();
+      document.getElementById('pesFude').textContent = pes.N_after.toLocaleString();
+
+      renderTable(opt, std, pes);
+      renderChart(opt, std, pes);
+      renderBreakdown(opt, std, pes, A_input, alpha);
+
+      showSections();
+    }
+
+    // ===========================
+    // アコーディオン
+    // ===========================
+
+    function toggleAccordion(id) {
+      const content = document.getElementById('content-' + id);
+      const icon    = document.getElementById('icon-' + id);
+      content.classList.toggle('open');
+      icon.classList.toggle('open');
+    }
+
+    // ===========================
+    // 入力変更で即時再計算
+    // ===========================
+
+    ['inputArea', 'inputFude', 'inputAlpha'].forEach(id => {
+      document.getElementById(id).addEventListener('input', function() {
+        runCalc();
+      });
+    });
+
+    // ===========================
+    // 初期計算実行（ページロード時）
+    // ===========================
+    window.addEventListener('DOMContentLoaded', function() {
+      runCalc();
+    });
+
+  </script>
+</body>
+</html>
