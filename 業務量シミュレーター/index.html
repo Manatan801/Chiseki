@@ -192,6 +192,23 @@
       <!-- ===== 右カラム：出力パネル ===== -->
       <div class="lg:col-span-2 space-y-5" id="outputPanel">
 
+        <!-- ===== R8 班体制変更 注意バナー ===== -->
+        <div class="bg-orange-50 border-l-4 border-orange-500 rounded-r-xl shadow-sm p-4">
+          <div class="flex gap-3">
+            <svg class="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div>
+              <p class="text-orange-800 font-semibold text-sm">R8年度以降：2班体制への変更に注意</p>
+              <p class="text-orange-700 text-xs mt-1">
+                R5〜R7は<strong>3班体制</strong>で実施しました。R8年度より<strong>2班体制</strong>に移行したため、
+                年間消化可能業務量は従来比 <strong>約 2/3（約67%）</strong> に減少しています。
+                本シミュレーターの推計日数（全班合計）を年間工程に換算する際は、この点を考慮してください。
+              </p>
+            </div>
+          </div>
+        </div>
+
         <!-- 計算待ちプレースホルダー（初期は非表示・計算後に消える） -->
         <div id="placeholder" class="hidden bg-white rounded-xl shadow-md border border-gray-200 p-8 text-center text-gray-400">
           <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,6 +393,143 @@
               <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
                 <p class="font-semibold mb-1">※ 住宅地割増係数について</p>
                 <p>住宅地屋根面積割合は、現在のチーム特性において筆数負担の中に包含されるため、モデル上は係数0（影響なし）として処理されます。R5〜R7の実績分析において、この変数の追加による推計精度の向上が確認されなかったことによるものです。</p>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== R5〜R7 実績データ参照 アコーディオン ===== -->
+        <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <button
+            onclick="toggleAccordion('actual')"
+            class="w-full bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              R5〜R7 実績データ一覧（参考値 ／ 3班体制時）
+            </h2>
+            <svg id="icon-actual" class="accordion-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="content-actual" class="accordion-content">
+            <div class="p-5">
+              <p class="text-xs text-gray-500 mb-3">
+                以下は習熟度定着モデルの係数導出に使用したR5〜R7年度の実績データです。<br>
+                <span class="text-orange-700 font-semibold">※ 3班体制時の実績です。R8以降の2班体制では年間消化量が約2/3になります。</span>
+              </p>
+              <div class="overflow-x-auto">
+                <table class="w-full text-xs border-collapse">
+                  <thead>
+                    <tr class="bg-[#1e3a8a] text-white">
+                      <th class="px-3 py-2.5 text-left font-semibold rounded-tl-lg">項目</th>
+                      <th class="px-3 py-2.5 text-center font-semibold">
+                        <div class="text-blue-200 text-xs font-normal">令和5年度</div>
+                        <div>上小津田Ⅰ地区</div>
+                      </th>
+                      <th class="px-3 py-2.5 text-center font-semibold">
+                        <div class="text-blue-200 text-xs font-normal">令和6年度</div>
+                        <div>小豆畑・上小津田地区</div>
+                      </th>
+                      <th class="px-3 py-2.5 text-center font-semibold rounded-tr-lg">
+                        <div class="text-blue-200 text-xs font-normal">令和7年度</div>
+                        <div>上小津田・富士ケ丘地区</div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
+                    <tr class="bg-blue-50">
+                      <td class="px-3 py-2.5 font-semibold text-gray-700">実際の業務量<br><span class="font-normal text-gray-500">（全班合計調査日数）</span></td>
+                      <td class="px-3 py-2.5 text-center font-bold text-[#1e3a8a] text-sm">450 日</td>
+                      <td class="px-3 py-2.5 text-center font-bold text-[#1e3a8a] text-sm">368 日</td>
+                      <td class="px-3 py-2.5 text-center font-bold text-[#1e3a8a] text-sm">390 日</td>
+                    </tr>
+                    <tr class="bg-white">
+                      <td class="px-3 py-2.5 text-gray-700">面積<br><span class="text-gray-500">（km² ／ ≒ha換算）</span></td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">0.65 km²<br><span class="text-gray-400 text-xs">（≒ 65 ha）</span></td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">0.44 km²<br><span class="text-gray-400 text-xs">（≒ 44 ha）</span></td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">0.72 km²<br><span class="text-gray-400 text-xs">（≒ 72 ha）</span></td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                      <td class="px-3 py-2.5 text-gray-700">調査前筆数（筆）</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">903 筆</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">906 筆</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">540 筆</td>
+                    </tr>
+                    <tr class="bg-white">
+                      <td class="px-3 py-2.5 text-gray-700">調査後筆数（筆）</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">563 筆</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">549 筆</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">443 筆</td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                      <td class="px-3 py-2.5 text-gray-700">調査後筆数 残存率</td>
+                      <td class="px-3 py-2.5 text-center">
+                        <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">62.3%</span>
+                      </td>
+                      <td class="px-3 py-2.5 text-center">
+                        <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold">60.6%</span>
+                      </td>
+                      <td class="px-3 py-2.5 text-center">
+                        <span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded font-semibold">82.0%</span>
+                      </td>
+                    </tr>
+                    <tr class="bg-white">
+                      <td class="px-3 py-2.5 text-gray-700">α係数（全域平均）</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">1.25784</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">1.23355</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">1.31834</td>
+                    </tr>
+                    <tr class="bg-gray-50">
+                      <td class="px-3 py-2.5 text-gray-700">平均傾斜（°）</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">14.26°</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">13.21°</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">17.27°</td>
+                    </tr>
+                    <tr class="bg-white rounded-b-lg">
+                      <td class="px-3 py-2.5 text-gray-700">住宅地割合<br><span class="text-gray-500">（屋根面積ベース）</span></td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">2.70%</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">1.09%</td>
+                      <td class="px-3 py-2.5 text-center text-gray-800">2.62%</td>
+                    </tr>
+                  </tbody>
+                  <tfoot>
+                    <tr class="bg-gray-100 border-t-2 border-gray-300">
+                      <td class="px-3 py-2 text-gray-600 font-semibold text-xs">3ヶ年平均</td>
+                      <td colspan="3" class="px-3 py-2 text-gray-500 text-xs">
+                        残存率平均：68.3%　／　推計式係数（面積）：151.14　／　（筆数）：0.437
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              <!-- 推計精度確認 -->
+              <div class="mt-4 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                <p class="text-xs font-semibold text-gray-700 mb-2">推計式による再現精度の確認</p>
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                  <div class="text-center">
+                    <p class="text-gray-500 mb-1">R5 上小津田Ⅰ</p>
+                    <p class="text-gray-400">推計: <span class="text-gray-700 font-semibold" id="chkR5">—</span> 日</p>
+                    <p class="text-gray-400">実績: <span class="text-[#1e3a8a] font-semibold">450</span> 日</p>
+                    <p class="text-xs text-gray-400 mt-0.5">面積 0.65 km²</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-gray-500 mb-1">R6 小豆畑・上小津田</p>
+                    <p class="text-gray-400">推計: <span class="text-gray-700 font-semibold" id="chkR6">—</span> 日</p>
+                    <p class="text-gray-400">実績: <span class="text-[#1e3a8a] font-semibold">368</span> 日</p>
+                    <p class="text-xs text-gray-400 mt-0.5">面積 0.44 km²</p>
+                  </div>
+                  <div class="text-center">
+                    <p class="text-gray-500 mb-1">R7 上小津田・富士ケ丘</p>
+                    <p class="text-gray-400">推計: <span class="text-gray-700 font-semibold" id="chkR7">—</span> 日</p>
+                    <p class="text-gray-400">実績: <span class="text-[#1e3a8a] font-semibold">390</span> 日</p>
+                    <p class="text-xs text-gray-400 mt-0.5">面積 0.72 km²</p>
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -703,10 +857,31 @@
     });
 
     // ===========================
+    // 推計式の再現精度チェック（実績データ検証用）
+    // ===========================
+    function calcActualCheck() {
+      // 実績データの面積は km² 単位（0.65 km² = 65 ha）→ 数式の A にそのまま代入（÷100 不要）
+      const records = [
+        { id: 'chkR5', A: 0.65, N_after: 563, alpha: 1.25784, actual: 450 },
+        { id: 'chkR6', A: 0.44, N_after: 549, alpha: 1.23355, actual: 368 },
+        { id: 'chkR7', A: 0.72, N_after: 443, alpha: 1.31834, actual: 390 },
+      ];
+      records.forEach(function(r) {
+        const W = Math.round((151.14 * r.A + 0.437 * r.N_after) * r.alpha);
+        const diff = W - r.actual;
+        const pct = (diff / r.actual * 100).toFixed(1);
+        const sign = diff >= 0 ? '+' : '';
+        const el = document.getElementById(r.id);
+        if (el) el.textContent = W + ' (' + sign + pct + '%)';
+      });
+    }
+
+    // ===========================
     // 初期計算実行（ページロード時）
     // ===========================
     window.addEventListener('DOMContentLoaded', function() {
       runCalc();
+      calcActualCheck();
     });
 
   </script>
