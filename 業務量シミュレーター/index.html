@@ -4,11 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>地籍調査 業務量シミュレーター｜北茨城市</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="assets/chart.js"></script>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       font-family: "Yu Gothic", "游ゴシック", Meiryo, "メイリオ", "Hiragino Kaku Gothic ProN", sans-serif;
+      margin: 0;
+      color: #1f2937;
+    }
+    button, input, select {
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      border: 0;
+    }
+    table {
+      border-spacing: 0;
+    }
+    svg {
+      display: block;
     }
     .accordion-content {
       max-height: 0;
@@ -29,25 +46,35 @@
     input[type="number"]::-webkit-outer-spin-button {
       opacity: 1;
     }
+    .block{display:block}.hidden{display:none}.flex{display:flex}.grid{display:grid}.relative{position:relative}.absolute{position:absolute}
+    .mx-auto{margin-left:auto;margin-right:auto}.min-h-screen{min-height:100vh}.w-full{width:100%}.max-w-7xl{max-width:80rem}
+    .grid-cols-1{grid-template-columns:repeat(1,minmax(0,1fr))}.grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}.grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .items-center{align-items:center}.items-start{align-items:flex-start}.items-baseline{align-items:baseline}.justify-between{justify-content:space-between}.justify-center{justify-content:center}.flex-shrink-0{flex-shrink:0}
+    .gap-1{gap:.25rem}.gap-1\.5{gap:.375rem}.gap-2{gap:.5rem}.gap-3{gap:.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}
+    .space-y-1>*+*{margin-top:.25rem}.space-y-1\.5>*+*{margin-top:.375rem}.space-y-2>*+*{margin-top:.5rem}.space-y-3>*+*{margin-top:.75rem}.space-y-4>*+*{margin-top:1rem}.space-y-5>*+*{margin-top:1.25rem}
+    .p-2{padding:.5rem}.p-3{padding:.75rem}.p-4{padding:1rem}.p-5{padding:1.25rem}.p-6{padding:1.5rem}.p-8{padding:2rem}
+    .px-2{padding-left:.5rem;padding-right:.5rem}.px-3{padding-left:.75rem;padding-right:.75rem}.px-4{padding-left:1rem;padding-right:1rem}.px-5{padding-left:1.25rem;padding-right:1.25rem}
+    .py-0\.5{padding-top:.125rem;padding-bottom:.125rem}.py-1{padding-top:.25rem;padding-bottom:.25rem}.py-2{padding-top:.5rem;padding-bottom:.5rem}.py-2\.5{padding-top:.625rem;padding-bottom:.625rem}.py-3{padding-top:.75rem;padding-bottom:.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.py-6{padding-top:1.5rem;padding-bottom:1.5rem}
+    .pr-12{padding-right:3rem}.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.mt-4{margin-top:1rem}.mt-10{margin-top:2.5rem}
+    .mb-1{margin-bottom:.25rem}.mb-2{margin-bottom:.5rem}.mb-3{margin-bottom:.75rem}.mb-4{margin-bottom:1rem}.mb-5{margin-bottom:1.25rem}.ml-0\.5{margin-left:.125rem}.ml-1{margin-left:.25rem}
+    .top-1\/2{top:50%}.right-3{right:.75rem}.-translate-y-1\/2{transform:translateY(-50%)}
+    .h-3{height:.75rem}.h-4{height:1rem}.h-5{height:1.25rem}.h-7{height:1.75rem}.h-12{height:3rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-7{width:1.75rem}.w-12{width:3rem}
+    .overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.border-collapse{border-collapse:collapse}
+    .rounded{border-radius:.25rem}.rounded-lg{border-radius:.5rem}.rounded-xl{border-radius:.75rem}.rounded-r-xl{border-top-right-radius:.75rem;border-bottom-right-radius:.75rem}.rounded-full{border-radius:9999px}.rounded-tl-lg{border-top-left-radius:.5rem}.rounded-tr-lg{border-top-right-radius:.5rem}.rounded-b-lg{border-bottom-left-radius:.5rem;border-bottom-right-radius:.5rem}
+    .border{border:1px solid #e5e7eb}.border-b{border-bottom:1px solid #e5e7eb}.border-l-4{border-left:4px solid}.border-t-2{border-top:2px solid}.divide-y>*+*{border-top:1px solid #f3f4f6}
+    .shadow-sm{box-shadow:0 1px 2px rgba(0,0,0,.05)}.shadow-md{box-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1)}.shadow-lg{box-shadow:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1)}
+    .bg-\[\#1e3a8a\]{background:#1e3a8a}.bg-white{background:#fff}.bg-gray-50{background:#f9fafb}.bg-gray-100{background:#f3f4f6}.bg-gray-200{background:#e5e7eb}.bg-gray-500{background:#6b7280}.bg-gray-800{background:#1f2937}.bg-blue-50{background:#eff6ff}.bg-blue-100{background:#dbeafe}.bg-green-50{background:#f0fdf4}.bg-red-50{background:#fef2f2}.bg-orange-50{background:#fff7ed}.bg-orange-100{background:#ffedd5}.bg-amber-50{background:#fffbeb}.bg-yellow-50{background:#fefce8}
+    .bg-opacity-10{background-color:rgba(255,255,255,.1)}.bg-opacity-20{background-color:rgba(255,255,255,.2)}
+    .border-gray-100{border-color:#f3f4f6}.border-gray-200{border-color:#e5e7eb}.border-gray-300{border-color:#d1d5db}.border-blue-100{border-color:#dbeafe}.border-blue-200{border-color:#bfdbfe}.border-green-200{border-color:#bbf7d0}.border-green-500{border-color:#22c55e}.border-red-200{border-color:#fecaca}.border-red-500{border-color:#ef4444}.border-orange-500{border-color:#f97316}.border-amber-200{border-color:#fde68a}.border-yellow-100{border-color:#fef9c3}
+    .text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}.text-xs{font-size:.75rem;line-height:1rem}.text-sm{font-size:.875rem;line-height:1.25rem}.text-base{font-size:1rem;line-height:1.5rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-2xl{font-size:1.5rem;line-height:2rem}.text-3xl{font-size:1.875rem;line-height:2.25rem}.text-5xl{font-size:3rem;line-height:1}
+    .font-normal{font-weight:400}.font-medium{font-weight:500}.font-semibold{font-weight:600}.font-bold{font-weight:700}.font-mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace}
+    .tracking-wide{letter-spacing:.025em}.tracking-tight{letter-spacing:0}.opacity-30{opacity:.3}
+    .text-white{color:#fff}.text-\[\#1e3a8a\]{color:#1e3a8a}.text-gray-400{color:#9ca3af}.text-gray-500{color:#6b7280}.text-gray-600{color:#4b5563}.text-gray-700{color:#374151}.text-gray-800{color:#1f2937}.text-blue-200{color:#bfdbfe}.text-blue-300{color:#93c5fd}.text-blue-600{color:#2563eb}.text-blue-700{color:#1d4ed8}.text-blue-800{color:#1e40af}.text-blue-900{color:#1e3a8a}.text-green-700{color:#15803d}.text-green-800{color:#166534}.text-red-700{color:#b91c1c}.text-red-800{color:#991b1b}.text-orange-500{color:#f97316}.text-orange-700{color:#c2410c}.text-orange-800{color:#9a3412}.text-amber-800{color:#92400e}
+    .transition-colors{transition:color .2s,background-color .2s,border-color .2s}.transition-all{transition:all .2s}.duration-200{transition-duration:.2s}.hover\:bg-blue-900:hover{background:#1e3a8a}.hover\:bg-gray-100:hover{background:#f3f4f6}
+    .focus\:outline-none:focus{outline:0}.focus\:ring-2:focus{box-shadow:0 0 0 2px #3b82f6}.focus\:ring-blue-500:focus{box-shadow:0 0 0 2px #3b82f6}.focus\:border-transparent:focus{border-color:transparent}
+    @media (min-width:768px){.md\:grid-cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media (min-width:1024px){.lg\:grid-cols-3{grid-template-columns:repeat(3,minmax(0,1fr))}.lg\:col-span-1{grid-column:span 1 / span 1}.lg\:col-span-2{grid-column:span 2 / span 2}}
   </style>
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            navy: {
-              50: '#eff6ff',
-              100: '#dbeafe',
-              600: '#1e40af',
-              700: '#1d4ed8',
-              800: '#1e3a8a',
-              900: '#1e3060',
-            }
-          }
-        }
-      }
-    }
-  </script>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
@@ -62,7 +89,7 @@
         </div>
         <div>
           <h1 class="text-xl font-bold tracking-wide">地籍調査 業務量シミュレーター</h1>
-          <p class="text-blue-200 text-sm mt-0.5">北茨城市 ／ 習熟度定着モデル（R5〜R7実績）</p>
+          <p class="text-blue-200 text-sm mt-0.5">北茨城市 ／ 経験年数補正モデル（R1〜R7実績）</p>
         </div>
       </div>
     </div>
@@ -146,6 +173,43 @@
               <p class="text-xs text-gray-400 mt-1">平坦地：1.00、丘陵地：1.25、山地：1.50 目安</p>
             </div>
 
+            <!-- 平均経験年数 -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">
+                平均経験年数
+                <span class="text-xs font-normal text-gray-500 ml-1">（経験補正）</span>
+              </label>
+              <div class="relative">
+                <input
+                  type="number"
+                  id="inputExperience"
+                  value="3.05"
+                  min="0"
+                  step="0.01"
+                  placeholder="例：3.05"
+                  class="w-full border border-gray-300 rounded-lg px-4 py-2.5 pr-12 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+                />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-medium">年</span>
+              </div>
+              <p class="text-xs text-gray-400 mt-1">初期値は直近R5〜R7平均（約3.05年）。R1〜R7全体平均は約3.33年</p>
+            </div>
+
+            <!-- 班体制 -->
+            <div>
+              <label class="block text-sm font-semibold text-gray-700 mb-1">
+                班体制
+                <span class="text-xs font-normal text-gray-500 ml-1">（工程換算）</span>
+              </label>
+              <select
+                id="inputTeams"
+                class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
+              >
+                <option value="3">3班体制（R1〜R7実績基準）</option>
+                <option value="2">2班体制（3班基準の1.5倍で工程換算）</option>
+              </select>
+              <p class="text-xs text-gray-400 mt-1">2班体制では同じ総業務量を少ない班数で処理するため、工程日数を 3/2 倍に換算します</p>
+            </div>
+
             <!-- エラー表示 -->
             <div id="errorMsg" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"></div>
 
@@ -223,16 +287,19 @@
           <div class="bg-[#1e3a8a] rounded-xl shadow-lg text-white p-6 mb-4">
             <div class="flex items-start justify-between">
               <div>
-                <p class="text-blue-200 text-sm font-medium mb-1">標準ケース（推奨計画値）</p>
+                <p class="text-blue-200 text-sm font-medium mb-1">標準ケース（推奨計画値 ／ <span id="teamLabel">3班換算</span>）</p>
                 <div class="flex items-baseline gap-2">
                   <span id="stdDays" class="text-5xl font-bold tracking-tight">—</span>
                   <span class="text-2xl text-blue-200">日</span>
                 </div>
                 <p class="text-blue-300 text-sm mt-2">調査後筆数：<span id="stdFude" class="text-white font-semibold">—</span> 筆（残存率 69%）</p>
+                <p class="text-blue-200 text-xs mt-1">
+                  3班基準：<span id="stdThreeTeamDays" class="text-white font-semibold">—</span> 日 ／ 旧モデル参考値：<span id="stdOldDays" class="text-white font-semibold">—</span> 日 ／ 差分：<span id="stdDiffDays" class="text-white font-semibold">—</span> 日
+                </p>
               </div>
               <div class="bg-white bg-opacity-10 rounded-lg p-3 text-right">
-                <p class="text-blue-200 text-xs">R5〜R7 過去平均</p>
-                <p class="text-white text-sm font-semibold mt-1">合筆率 31%</p>
+                <p class="text-blue-200 text-xs">経験年数感度</p>
+                <p class="text-white text-sm font-semibold mt-1">3班基準 ±0.5年で 約∓47日</p>
               </div>
             </div>
           </div>
@@ -275,7 +342,9 @@
                   <th class="px-4 py-3 text-left font-semibold">ケース</th>
                   <th class="px-4 py-3 text-right font-semibold">残存率</th>
                   <th class="px-4 py-3 text-right font-semibold">調査後筆数</th>
-                  <th class="px-4 py-3 text-right font-semibold">推計調査日数</th>
+                  <th class="px-4 py-3 text-right font-semibold">経験補正後<br><span id="tableTeamLabel">3班換算</span></th>
+                  <th class="px-4 py-3 text-right font-semibold">旧モデル<br>参考値</th>
+                  <th class="px-4 py-3 text-right font-semibold">差分</th>
                   <th class="px-4 py-3 text-right font-semibold">1筆あたり<br>日数目安</th>
                 </tr>
               </thead>
@@ -292,11 +361,29 @@
               <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
               </svg>
-              シナリオ別 推計調査日数（内訳スタック）
+              シナリオ別 推計調査日数（経験補正後・旧モデル比較）
             </h2>
           </div>
           <div class="p-5">
             <canvas id="mainChart" height="220"></canvas>
+          </div>
+        </div>
+
+        <!-- ===== 実績比較グラフ ===== -->
+        <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <div class="bg-gray-50 px-5 py-3 border-b border-gray-200">
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19V5m4 14v-6m4 6V9m4 10v-4m4 4V7"/>
+              </svg>
+              R1〜R7 推計日数・実績日数・時間外勤務時間の比較
+            </h2>
+          </div>
+          <div class="p-5">
+            <canvas id="validationChart" height="260"></canvas>
+            <p class="text-xs text-gray-500 mt-3">
+              棒グラフは左軸（日数）、折れ線は右軸（時間）です。R1/R2の時間外勤務時間は平均経験年数からの推定値です。
+            </p>
           </div>
         </div>
 
@@ -318,6 +405,79 @@
           </button>
           <div id="content-breakdown" class="accordion-content">
             <div class="p-5 space-y-4" id="breakdownContent"></div>
+          </div>
+        </div>
+
+        <!-- ===== 相関分析アコーディオン ===== -->
+        <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+          <button
+            onclick="toggleAccordion('correlation')"
+            class="w-full bg-gray-50 px-5 py-3 border-b border-gray-200 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <h2 class="font-semibold text-gray-800 text-sm flex items-center gap-2">
+              <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3v18m4-14v14m4-10v10M7 13v8M3 17v4"/>
+              </svg>
+              R1〜R7 相関分析・時間外推定（クリックで展開）
+            </h2>
+            <svg id="icon-correlation" class="accordion-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+            </svg>
+          </button>
+          <div id="content-correlation" class="accordion-content">
+            <div class="p-5 space-y-4">
+              <div class="bg-blue-50 border border-blue-100 rounded-lg p-4">
+                <p class="text-sm text-blue-900 font-semibold">注目点：平均経験年数は業務日数と負の相関、時間外勤務とは非常に強い負の相関</p>
+                <p class="text-xs text-blue-800 mt-1">
+                  R1/R2の時間外勤務手当総時間数は、R3〜R7既知データで最も相関が強い平均経験年数から単回帰で仮定しました。
+                  既知5年分での相関は r = -0.9862、推定式は「時間外 = 1426.21 - 299.83 × 平均経験年数」です。
+                </p>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="overflow-x-auto border border-gray-200 rounded-lg">
+                  <table class="w-full text-xs">
+                    <thead class="bg-gray-50 text-gray-600">
+                      <tr>
+                        <th class="px-3 py-2 text-left">項目</th>
+                        <th class="px-3 py-2 text-right">業務日数との相関</th>
+                        <th class="px-3 py-2 text-right">n</th>
+                      </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                      <tr><td class="px-3 py-2">α係数(全域平均)</td><td class="px-3 py-2 text-right font-semibold text-red-700">0.6496</td><td class="px-3 py-2 text-right">7</td></tr>
+                      <tr><td class="px-3 py-2">平均傾斜（°）</td><td class="px-3 py-2 text-right font-semibold text-red-700">0.6278</td><td class="px-3 py-2 text-right">7</td></tr>
+                      <tr><td class="px-3 py-2">調査後筆数</td><td class="px-3 py-2 text-right font-semibold text-red-700">0.5728</td><td class="px-3 py-2 text-right">7</td></tr>
+                      <tr><td class="px-3 py-2">調査前筆数</td><td class="px-3 py-2 text-right font-semibold text-red-700">0.5131</td><td class="px-3 py-2 text-right">7</td></tr>
+                      <tr class="bg-blue-50"><td class="px-3 py-2 font-semibold">平均経験年数</td><td class="px-3 py-2 text-right font-bold text-blue-800">-0.3610</td><td class="px-3 py-2 text-right">7</td></tr>
+                      <tr><td class="px-3 py-2">時間外勤務手当 総時間数（仮定後）</td><td class="px-3 py-2 text-right font-semibold text-red-700">0.3514</td><td class="px-3 py-2 text-right">7</td></tr>
+                      <tr><td class="px-3 py-2">住宅地割合（%）</td><td class="px-3 py-2 text-right">0.3281</td><td class="px-3 py-2 text-right">7</td></tr>
+                      <tr><td class="px-3 py-2">面積（km²）</td><td class="px-3 py-2 text-right text-blue-800">-0.2197</td><td class="px-3 py-2 text-right">7</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="space-y-3">
+                  <div class="border border-gray-200 rounded-lg p-4">
+                    <p class="text-xs text-gray-500">時間外勤務手当 総時間数の仮定</p>
+                    <div class="grid grid-cols-2 gap-3 mt-3 text-center">
+                      <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-500 text-xs">R1 平潟・大津</p>
+                        <p class="text-xl font-bold text-[#1e3a8a]">476.6</p>
+                        <p class="text-xs text-gray-400">時間</p>
+                      </div>
+                      <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-500 text-xs">R2 平潟II</p>
+                        <p class="text-xl font-bold text-[#1e3a8a]">277.0</p>
+                        <p class="text-xs text-gray-400">時間</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="border border-amber-200 bg-amber-50 rounded-lg p-4 text-xs text-amber-800">
+                    <p class="font-semibold mb-1">解釈上の注意</p>
+                    <p>7年分の少数データであり、相関は因果を直接証明するものではありません。ただし、平均経験年数は時間外勤務の増減と強く連動しており、推計式では計画補助用の補正係数として採用します。</p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -349,24 +509,28 @@
               </div>
 
               <div>
-                <h3 class="font-semibold text-gray-800 mb-2 text-base">2. 習熟度定着モデルの採用</h3>
+                <h3 class="font-semibold text-gray-800 mb-2 text-base">2. 経験年数補正モデルの採用</h3>
                 <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4">
-                  <p>R5〜R7年度の実績データ分析に基づき、人事異動等による調査員の習熟度変化を踏まえた「<strong>習熟度定着モデル</strong>」を採用しています。不慣れな職員が一定ペースで継続する現状のチーム能力を前提とすることで、計画段階での予算・工程の破綻を防ぐ<strong>現実的な推計</strong>を行います。</p>
+                  <p>R1〜R7年度の実績データ分析に基づき、人事異動等による調査員の習熟度変化を踏まえた「<strong>経験年数補正モデル</strong>」を採用しています。平均経験年数が高いほど調整・判断・現地対応の手戻りが減る前提を、計画段階の業務日数推計に反映します。</p>
                 </div>
               </div>
 
               <div>
                 <h3 class="font-semibold text-gray-800 mb-2 text-base">3. 推計式（業務量計算モデル）</h3>
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-sm">
-                  <p class="text-gray-800 font-semibold mb-2">W = (151.14 × A + 0.437 × N_after) × α</p>
+                  <p class="text-gray-800 font-semibold mb-2">base = (151.14 × A + 0.437 × N_after) × α</p>
+                  <p class="text-gray-800 font-semibold mb-2">W = 580.80 + 0.2251 × base - 93.00 × Exp</p>
+                  <p class="text-gray-800 font-semibold mb-2">W_team = W × 3 ÷ 班数</p>
                   <div class="text-gray-600 space-y-1 text-xs">
                     <p>W：推計調査日数</p>
+                    <p>W_team：選択した班体制での工程換算日数</p>
                     <p>A：地区面積（内部単位、入力値 ha ÷ 100）</p>
                     <p>N_after：調査後筆数（合筆後）</p>
                     <p>α：傾斜・地形区分による平均補正係数</p>
+                    <p>Exp：平均経験年数</p>
                   </div>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">※ 係数 151.14 は面積あたりの現地作業負荷、0.437 は1筆あたりの書類・事務作業時間を表します（R5〜R7実績からの最小二乗推計）。</p>
+                <p class="text-xs text-gray-500 mt-2">※ baseは旧モデル参考値です。経験年数補正はR1〜R7実績からの最小二乗推計で、平均経験年数が1年増えると他条件一定で約93日減る係数です。</p>
               </div>
 
               <div>
@@ -399,7 +563,7 @@
           </div>
         </div>
 
-        <!-- ===== R5〜R7 実績データ参照 アコーディオン ===== -->
+        <!-- ===== R1〜R7 実績データ参照 アコーディオン ===== -->
         <div class="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
           <button
             onclick="toggleAccordion('actual')"
@@ -409,7 +573,7 @@
               <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
               </svg>
-              R5〜R7 実績データ一覧（参考値 ／ 3班体制時）
+              R1〜R7 実績データ一覧（参考値 ／ 3班体制時）
             </h2>
             <svg id="icon-actual" class="accordion-icon w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -418,9 +582,42 @@
           <div id="content-actual" class="accordion-content">
             <div class="p-5">
               <p class="text-xs text-gray-500 mb-3">
-                以下は習熟度定着モデルの係数導出に使用したR5〜R7年度の実績データです。<br>
+                以下は経験年数補正モデルの係数導出に使用したR1〜R7年度の実績データです。<br>
                 <span class="text-orange-700 font-semibold">※ 3班体制時の実績です。R8以降の2班体制では年間消化量が約2/3になります。</span>
               </p>
+              <div class="overflow-x-auto mb-5">
+                <table class="w-full text-xs border-collapse">
+                  <thead>
+                    <tr class="bg-[#1e3a8a] text-white">
+                      <th class="px-3 py-2 text-left rounded-tl-lg">項目</th>
+                      <th class="px-3 py-2 text-center">R1<br><span class="font-normal text-blue-200">平潟・大津</span></th>
+                      <th class="px-3 py-2 text-center">R2<br><span class="font-normal text-blue-200">平潟II</span></th>
+                      <th class="px-3 py-2 text-center">R3<br><span class="font-normal text-blue-200">日棚IV</span></th>
+                      <th class="px-3 py-2 text-center">R4<br><span class="font-normal text-blue-200">日棚・松井</span></th>
+                      <th class="px-3 py-2 text-center">R5<br><span class="font-normal text-blue-200">上小津田I</span></th>
+                      <th class="px-3 py-2 text-center">R6<br><span class="font-normal text-blue-200">小豆畑・上小津田</span></th>
+                      <th class="px-3 py-2 text-center rounded-tr-lg">R7<br><span class="font-normal text-blue-200">上小津田・富士ケ丘</span></th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-gray-100">
+                    <tr class="bg-blue-50"><td class="px-3 py-2 font-semibold">実際の業務量（日）</td><td class="px-3 py-2 text-center font-semibold">422</td><td class="px-3 py-2 text-center font-semibold">449</td><td class="px-3 py-2 text-center font-semibold">333</td><td class="px-3 py-2 text-center font-semibold">310</td><td class="px-3 py-2 text-center font-semibold">450</td><td class="px-3 py-2 text-center font-semibold">368</td><td class="px-3 py-2 text-center font-semibold">390</td></tr>
+                    <tr><td class="px-3 py-2">面積（km²）</td><td class="px-3 py-2 text-center">0.86</td><td class="px-3 py-2 text-center">0.57</td><td class="px-3 py-2 text-center">0.68</td><td class="px-3 py-2 text-center">0.85</td><td class="px-3 py-2 text-center">0.65</td><td class="px-3 py-2 text-center">0.44</td><td class="px-3 py-2 text-center">0.72</td></tr>
+                    <tr class="bg-gray-50"><td class="px-3 py-2">調査前筆数</td><td class="px-3 py-2 text-center">1,161</td><td class="px-3 py-2 text-center">1,785</td><td class="px-3 py-2 text-center">824</td><td class="px-3 py-2 text-center">894</td><td class="px-3 py-2 text-center">903</td><td class="px-3 py-2 text-center">906</td><td class="px-3 py-2 text-center">540</td></tr>
+                    <tr><td class="px-3 py-2">調査後筆数</td><td class="px-3 py-2 text-center">827</td><td class="px-3 py-2 text-center">1,381</td><td class="px-3 py-2 text-center">504</td><td class="px-3 py-2 text-center">553</td><td class="px-3 py-2 text-center">563</td><td class="px-3 py-2 text-center">549</td><td class="px-3 py-2 text-center">443</td></tr>
+                    <tr class="bg-gray-50"><td class="px-3 py-2">α係数</td><td class="px-3 py-2 text-center">1.363205</td><td class="px-3 py-2 text-center">1.362490</td><td class="px-3 py-2 text-center">1.167285</td><td class="px-3 py-2 text-center">1.257355</td><td class="px-3 py-2 text-center">1.257840</td><td class="px-3 py-2 text-center">1.233550</td><td class="px-3 py-2 text-center">1.318335</td></tr>
+                    <tr><td class="px-3 py-2">平均傾斜（°）</td><td class="px-3 py-2 text-center">18.92</td><td class="px-3 py-2 text-center">19.18</td><td class="px-3 py-2 text-center">10.18</td><td class="px-3 py-2 text-center">14.57</td><td class="px-3 py-2 text-center">14.26</td><td class="px-3 py-2 text-center">13.21</td><td class="px-3 py-2 text-center">17.27</td></tr>
+                    <tr class="bg-gray-50"><td class="px-3 py-2">住宅地割合（%）</td><td class="px-3 py-2 text-center">4.62</td><td class="px-3 py-2 text-center">7.62</td><td class="px-3 py-2 text-center">3.97</td><td class="px-3 py-2 text-center">2.24</td><td class="px-3 py-2 text-center">2.70</td><td class="px-3 py-2 text-center">6.79</td><td class="px-3 py-2 text-center">2.10</td></tr>
+                    <tr><td class="px-3 py-2">時間外勤務手当 総時間数</td><td class="px-3 py-2 text-center text-blue-800 font-semibold">476.6*</td><td class="px-3 py-2 text-center text-blue-800 font-semibold">277.0*</td><td class="px-3 py-2 text-center">294.0</td><td class="px-3 py-2 text-center">396.0</td><td class="px-3 py-2 text-center">646.8</td><td class="px-3 py-2 text-center">487.0</td><td class="px-3 py-2 text-center">417.0</td></tr>
+                    <tr class="bg-blue-50"><td class="px-3 py-2 font-semibold">平均経験年数</td><td class="px-3 py-2 text-center font-semibold">3.167</td><td class="px-3 py-2 text-center font-semibold">3.833</td><td class="px-3 py-2 text-center font-semibold">3.667</td><td class="px-3 py-2 text-center font-semibold">3.500</td><td class="px-3 py-2 text-center font-semibold">2.571</td><td class="px-3 py-2 text-center font-semibold">3.143</td><td class="px-3 py-2 text-center font-semibold">3.429</td></tr>
+                  </tbody>
+                  <tfoot>
+                    <tr class="bg-gray-100">
+                      <td colspan="8" class="px-3 py-2 text-gray-500">* R1/R2の時間外勤務手当総時間数は、平均経験年数から推定した仮定値です。</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <p class="text-xs font-semibold text-gray-700 mb-2">旧モデル参考値の確認用：R5〜R7詳細</p>
               <div class="overflow-x-auto">
                 <table class="w-full text-xs border-collapse">
                   <thead>
@@ -543,7 +740,7 @@
   <!-- フッター -->
   <footer class="mt-10 bg-gray-800 text-gray-400 text-xs py-4">
     <div class="max-w-7xl mx-auto px-4 text-center space-y-1">
-      <p>地籍調査 業務量シミュレーター ／ 習熟度定着モデル（R5〜R7実績ベース）</p>
+      <p>地籍調査 業務量シミュレーター ／ 経験年数補正モデル（R1〜R7実績ベース）</p>
       <p>本ツールによる推計値は計画立案の参考情報であり、実際の事業日数を保証するものではありません。</p>
     </div>
   </footer>
@@ -552,6 +749,33 @@
     // ===========================
     // 数理ロジック（純粋関数）
     // ===========================
+    const MODEL = {
+      intercept: 580.7972,
+      baseCoef: 0.2251,
+      experienceCoef: -93.0016,
+      sensitivityHalfYear: 46.5,
+    };
+
+    const HISTORICAL_RECORDS = [
+      { year: 'R1', district: '平潟・大津', A: 0.86, N_after: 827, alpha: 1.363205, experience: 3.167, actualDays: 422, overtimeHours: 476.6, overtimeEstimated: true },
+      { year: 'R2', district: '平潟II', A: 0.57, N_after: 1381, alpha: 1.36249, experience: 3.833, actualDays: 449, overtimeHours: 277.0, overtimeEstimated: true },
+      { year: 'R3', district: '日棚IV', A: 0.68, N_after: 504, alpha: 1.167285, experience: 3.667, actualDays: 333, overtimeHours: 294, overtimeEstimated: false },
+      { year: 'R4', district: '日棚・松井', A: 0.85, N_after: 553, alpha: 1.257355, experience: 3.5, actualDays: 310, overtimeHours: 396, overtimeEstimated: false },
+      { year: 'R5', district: '上小津田I', A: 0.65, N_after: 563, alpha: 1.25784, experience: 2.571, actualDays: 450, overtimeHours: 646.8, overtimeEstimated: false },
+      { year: 'R6', district: '小豆畑・上小津田', A: 0.44, N_after: 549, alpha: 1.23355, experience: 3.143, actualDays: 368, overtimeHours: 487, overtimeEstimated: false },
+      { year: 'R7', district: '上小津田・富士ケ丘', A: 0.72, N_after: 443, alpha: 1.318335, experience: 3.429, actualDays: 390, overtimeHours: 417, overtimeEstimated: false },
+    ];
+
+    function calcHistoricalRecord(record) {
+      const oldRaw = (151.14 * record.A + 0.437 * record.N_after) * record.alpha;
+      const predictedDays = Math.round(MODEL.intercept + MODEL.baseCoef * oldRaw + MODEL.experienceCoef * record.experience);
+      return {
+        ...record,
+        oldRaw,
+        predictedDays,
+        daysDiff: predictedDays - record.actualDays,
+      };
+    }
 
     /**
      * 1シナリオ分の計算
@@ -559,14 +783,23 @@
      * @param {number} A       - 地区面積（内部単位 = A_input / 100）
      * @param {number} alpha   - α係数
      * @param {number} ratio   - 調査後筆数残存率（例: 0.69）
-     * @returns {{ N_after, areaPart, fudePart, W }}
+     * @param {number} experience - 平均経験年数
+     * @param {number} teamCount - 班数
+     * @returns {{ N_after, areaPart, fudePart, oldW, W, diff }}
      */
-    function calcScenario(N_before, A, alpha, ratio) {
+    function calcScenario(N_before, A, alpha, ratio, experience, teamCount) {
       const N_after = Math.round(N_before * ratio);
       const areaPart = 151.14 * A * alpha;       // 面積基本分（生値）
       const fudePart = 0.437 * N_after * alpha;  // 筆数事務分（生値）
-      const W = Math.round(areaPart + fudePart);
-      return { N_after, areaPart, fudePart, W };
+      const oldRaw = areaPart + fudePart;
+      const oldThreeTeamW = Math.round(oldRaw);
+      const correctedRaw = MODEL.intercept + MODEL.baseCoef * oldRaw + MODEL.experienceCoef * experience;
+      const threeTeamW = Math.max(1, Math.round(correctedRaw));
+      const teamScale = 3 / teamCount;
+      const oldW = Math.max(1, Math.round(oldThreeTeamW * teamScale));
+      const W = Math.max(1, Math.round(threeTeamW * teamScale));
+      const diff = W - oldW;
+      return { N_after, areaPart, fudePart, oldRaw, oldThreeTeamW, threeTeamW, oldW, correctedRaw, W, diff, teamScale };
     }
 
     /**
@@ -577,16 +810,20 @@
       const rawArea  = document.getElementById('inputArea').value.trim();
       const rawFude  = document.getElementById('inputFude').value.trim();
       const rawAlpha = document.getElementById('inputAlpha').value.trim();
+      const rawExperience = document.getElementById('inputExperience').value.trim();
+      const rawTeams = document.getElementById('inputTeams').value.trim();
 
-      if (rawArea === '' || rawFude === '' || rawAlpha === '') {
+      if (rawArea === '' || rawFude === '' || rawAlpha === '' || rawExperience === '' || rawTeams === '') {
         return { valid: false, errorMsg: '全ての入力項目を入力してください。' };
       }
 
       const A_input = parseFloat(rawArea);
       const N_before = parseFloat(rawFude);
       const alpha = parseFloat(rawAlpha);
+      const experience = parseFloat(rawExperience);
+      const teamCount = parseInt(rawTeams, 10);
 
-      if (isNaN(A_input) || isNaN(N_before) || isNaN(alpha)) {
+      if (isNaN(A_input) || isNaN(N_before) || isNaN(alpha) || isNaN(experience) || isNaN(teamCount)) {
         return { valid: false, errorMsg: '入力値に数値以外の文字が含まれています。' };
       }
       if (A_input <= 0) {
@@ -598,14 +835,21 @@
       if (alpha <= 0) {
         return { valid: false, errorMsg: 'α係数は 0 より大きい値を入力してください。' };
       }
+      if (experience < 0) {
+        return { valid: false, errorMsg: '平均経験年数は 0 以上の値を入力してください。' };
+      }
+      if (![2, 3].includes(teamCount)) {
+        return { valid: false, errorMsg: '班体制は 2班 または 3班 を選択してください。' };
+      }
 
-      return { valid: true, A_input, N_before: Math.round(N_before), alpha };
+      return { valid: true, A_input, N_before: Math.round(N_before), alpha, experience, teamCount };
     }
 
     // ===========================
     // Chart.js インスタンス管理
     // ===========================
     let mainChartInstance = null;
+    let validationChartInstance = null;
 
     function renderChart(opt, std, pes) {
       const ctx = document.getElementById('mainChart').getContext('2d');
@@ -620,26 +864,18 @@
           labels: ['楽観ケース', '標準ケース', '悲観ケース'],
           datasets: [
             {
-              label: '面積基本分（日）',
-              data: [
-                Math.round(opt.areaPart * 10) / 10,
-                Math.round(std.areaPart * 10) / 10,
-                Math.round(pes.areaPart * 10) / 10
-              ],
-              backgroundColor: ['rgba(34,197,94,0.7)', 'rgba(30,58,138,0.7)', 'rgba(239,68,68,0.7)'],
+              label: '経験補正後（日）',
+              data: [opt.W, std.W, pes.W],
+              backgroundColor: ['rgba(34,197,94,0.75)', 'rgba(30,58,138,0.75)', 'rgba(239,68,68,0.75)'],
               borderColor: ['rgba(34,197,94,1)', 'rgba(30,58,138,1)', 'rgba(239,68,68,1)'],
               borderWidth: 1,
               borderRadius: 4,
             },
             {
-              label: '筆数事務分（日）',
-              data: [
-                Math.round(opt.fudePart * 10) / 10,
-                Math.round(std.fudePart * 10) / 10,
-                Math.round(pes.fudePart * 10) / 10
-              ],
-              backgroundColor: ['rgba(34,197,94,0.35)', 'rgba(30,58,138,0.35)', 'rgba(239,68,68,0.35)'],
-              borderColor: ['rgba(34,197,94,0.7)', 'rgba(30,58,138,0.7)', 'rgba(239,68,68,0.7)'],
+              label: '旧モデル参考値（日）',
+              data: [opt.oldW, std.oldW, pes.oldW],
+              backgroundColor: 'rgba(107,114,128,0.28)',
+              borderColor: 'rgba(107,114,128,0.7)',
               borderWidth: 1,
               borderRadius: 4,
             }
@@ -658,19 +894,16 @@
             tooltip: {
               callbacks: {
                 footer: function(tooltipItems) {
-                  const total = tooltipItems.reduce((sum, item) => sum + item.raw, 0);
-                  return '合計: ' + Math.round(total) + ' 日';
+                  return '経験補正と旧モデルの比較';
                 }
               }
             }
           },
           scales: {
             x: {
-              stacked: true,
               ticks: { font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 } }
             },
             y: {
-              stacked: true,
               beginAtZero: true,
               title: {
                 display: true,
@@ -678,6 +911,124 @@
                 font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 }
               },
               ticks: { font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 11 } }
+            }
+          }
+        }
+      });
+    }
+
+    function renderValidationChart() {
+      const canvas = document.getElementById('validationChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const rows = HISTORICAL_RECORDS.map(calcHistoricalRecord);
+
+      if (validationChartInstance) {
+        validationChartInstance.destroy();
+      }
+
+      validationChartInstance = new Chart(ctx, {
+        data: {
+          labels: rows.map(r => r.year),
+          datasets: [
+            {
+              type: 'bar',
+              label: 'シミュレーター推計日数',
+              data: rows.map(r => r.predictedDays),
+              yAxisID: 'days',
+              backgroundColor: 'rgba(30,58,138,0.72)',
+              borderColor: 'rgba(30,58,138,1)',
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              type: 'bar',
+              label: '実際の業務日数',
+              data: rows.map(r => r.actualDays),
+              yAxisID: 'days',
+              backgroundColor: 'rgba(34,197,94,0.55)',
+              borderColor: 'rgba(34,197,94,1)',
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              type: 'bar',
+              label: '推計 - 実績（日）',
+              data: rows.map(r => r.daysDiff),
+              yAxisID: 'days',
+              backgroundColor: rows.map(r => r.daysDiff >= 0 ? 'rgba(239,68,68,0.45)' : 'rgba(59,130,246,0.45)'),
+              borderColor: rows.map(r => r.daysDiff >= 0 ? 'rgba(239,68,68,1)' : 'rgba(59,130,246,1)'),
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              type: 'line',
+              label: '時間外勤務手当 総時間数',
+              data: rows.map(r => r.overtimeHours),
+              yAxisID: 'hours',
+              borderColor: 'rgba(245,158,11,1)',
+              backgroundColor: 'rgba(245,158,11,0.18)',
+              pointBackgroundColor: rows.map(r => r.overtimeEstimated ? '#f97316' : '#f59e0b'),
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              pointRadius: 5,
+              tension: 0.25,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: {
+            mode: 'index',
+            intersect: false,
+          },
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 },
+                padding: 14
+              }
+            },
+            tooltip: {
+              callbacks: {
+                title: function(items) {
+                  const row = rows[items[0].dataIndex];
+                  return row.year + ' ' + row.district;
+                },
+                afterBody: function(items) {
+                  const row = rows[items[0].dataIndex];
+                  const marker = row.overtimeEstimated ? '時間外は推定値' : '時間外は実績値';
+                  const sign = row.daysDiff >= 0 ? '+' : '';
+                  return ['差分: ' + sign + row.daysDiff + ' 日', marker];
+                }
+              }
+            }
+          },
+          scales: {
+            days: {
+              type: 'linear',
+              position: 'left',
+              title: {
+                display: true,
+                text: '日数（日）',
+                font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 }
+              },
+              ticks: { font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 11 } }
+            },
+            hours: {
+              type: 'linear',
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              title: {
+                display: true,
+                text: '時間外勤務時間（時間）',
+                font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 }
+              },
+              ticks: { font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 11 } }
+            },
+            x: {
+              ticks: { font: { family: '"Yu Gothic","游ゴシック",Meiryo,sans-serif', size: 12 } }
             }
           }
         }
@@ -705,6 +1056,8 @@
       tbody.innerHTML = rows.map(row => {
         const c = colorMap[row.color];
         const perFude = (row.data.W / row.data.N_after).toFixed(2);
+        const diffText = row.data.diff >= 0 ? '+' + row.data.diff : row.data.diff;
+        const diffClass = row.data.diff <= 0 ? 'text-blue-700' : 'text-red-700';
         const boldClass = row.bold ? 'font-bold' : '';
         return `
           <tr class="${row.bold ? c.bg : ''}">
@@ -721,6 +1074,14 @@
               <span class="text-gray-400 text-xs ml-0.5">日</span>
             </td>
             <td class="px-4 py-3 text-right">
+              <span class="text-gray-700 text-sm">${row.data.oldW.toLocaleString()}</span>
+              <span class="text-gray-400 text-xs ml-0.5">日</span>
+            </td>
+            <td class="px-4 py-3 text-right">
+              <span class="${diffClass} text-sm font-semibold">${diffText.toLocaleString()}</span>
+              <span class="text-gray-400 text-xs ml-0.5">日</span>
+            </td>
+            <td class="px-4 py-3 text-right">
               <span class="text-gray-700 text-sm">${perFude}</span>
               <span class="text-gray-400 text-xs ml-0.5">日/筆</span>
             </td>
@@ -729,7 +1090,7 @@
       }).join('');
     }
 
-    function renderBreakdown(opt, std, pes, A_input, alpha) {
+    function renderBreakdown(opt, std, pes, A_input, alpha, experience, teamCount) {
       const scenarios = [
         { label: '楽観ケース', data: opt, color: '#22c55e', bgClass: 'bg-green-50 border-green-200' },
         { label: '標準ケース', data: std, color: '#1e3a8a', bgClass: 'bg-blue-50 border-blue-200' },
@@ -737,17 +1098,21 @@
       ];
 
       const container = document.getElementById('breakdownContent');
+      const teamNote = teamCount === 2
+        ? '2班体制を選択中のため、3班基準の推計値を 3/2 倍して工程日数に換算しています。'
+        : '3班体制を選択中のため、R1〜R7実績基準の推計値をそのまま表示しています。';
       container.innerHTML = `
         <p class="text-xs text-gray-500 mb-3">
-          ※ 内訳は小数第1位表示（四捨五入前の生値）です。合計調査日数は各生値の合算を最終的に四捨五入した値を採用するため、内訳の合計と表示日数が ±1 日程度ずれる場合があります。
+          ※ 旧モデル参考値（base）に平均経験年数補正をかけた値を主推計として表示します。${teamNote} 経験年数が0.5年増えると、3班基準で約46.5日減る感度です。
         </p>
       ` + scenarios.map(s => {
-        const totalRaw = s.data.areaPart + s.data.fudePart;
-        const areaRatio  = (s.data.areaPart / totalRaw * 100).toFixed(1);
-        const fudeRatio  = (s.data.fudePart  / totalRaw * 100).toFixed(1);
+        const totalRaw = s.data.oldRaw;
+        const areaRatio = (s.data.areaPart / totalRaw * 100).toFixed(1);
+        const fudeRatio = (s.data.fudePart / totalRaw * 100).toFixed(1);
+        const diffText = s.data.diff >= 0 ? '+' + s.data.diff : s.data.diff;
         return `
           <div class="border rounded-lg ${s.bgClass} p-4">
-            <h4 class="font-semibold text-gray-800 mb-3 text-sm">${s.label}の内訳（計 ${s.data.W} 日）</h4>
+            <h4 class="font-semibold text-gray-800 mb-3 text-sm">${s.label}の内訳（${teamCount}班換算 ${s.data.W} 日 ／ 3班基準 ${s.data.threeTeamW} 日 ／ 旧モデル ${s.data.oldW} 日 ／ 差分 ${diffText} 日）</h4>
             <div class="space-y-2">
               <!-- 面積基本分 -->
               <div>
@@ -772,11 +1137,11 @@
               <!-- 住宅地割増分 -->
               <div>
                 <div class="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>住宅地割増分 <span class="text-gray-400">（係数0 → 0.0 日）</span></span>
-                  <span class="font-semibold">0.0%</span>
+                  <span>経験年数補正 <span class="text-gray-400">（580.80 + 0.2251 × ${s.data.oldRaw.toFixed(1)} - 93.00 × ${experience}）</span></span>
+                  <span class="font-semibold">${s.data.correctedRaw.toFixed(1)} 日</span>
                 </div>
                 <div class="w-full bg-gray-200 rounded-full h-3">
-                  <div class="h-3 rounded-full bg-gray-300" style="width:0%"></div>
+                  <div class="h-3 rounded-full bg-gray-500" style="width:100%; opacity:0.35"></div>
                 </div>
               </div>
             </div>
@@ -784,8 +1149,8 @@
         `;
       }).join('') + `
         <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-          <p class="font-semibold mb-1">※ 住宅地割増係数について</p>
-          <p>住宅地屋根面積割合は、現在のチーム特性において筆数負担のなかに包含されるため、モデル上は係数0（影響なし）として処理されます。</p>
+          <p class="font-semibold mb-1">※ 係数の扱いについて</p>
+          <p>住宅地屋根面積割合は単独では推計精度の改善が小さいため、今回の主モデルには直接入れていません。平均経験年数は業務日数と負の相関があるため、計画補正として明示的に採用しています。</p>
         </div>
       `;
     }
@@ -813,16 +1178,21 @@
       }
       errEl.classList.add('hidden');
 
-      const { A_input, N_before, alpha } = validated;
+      const { A_input, N_before, alpha, experience, teamCount } = validated;
       const A = A_input / 100;  // 重要: 内部単位変換
 
-      const opt = calcScenario(N_before, A, alpha, 0.62);
-      const std = calcScenario(N_before, A, alpha, 0.69);
-      const pes = calcScenario(N_before, A, alpha, 0.82);
+      const opt = calcScenario(N_before, A, alpha, 0.62, experience, teamCount);
+      const std = calcScenario(N_before, A, alpha, 0.69, experience, teamCount);
+      const pes = calcScenario(N_before, A, alpha, 0.82, experience, teamCount);
 
       // サマリー更新
+      document.getElementById('teamLabel').textContent = teamCount + '班換算';
+      document.getElementById('tableTeamLabel').textContent = teamCount + '班換算';
       document.getElementById('stdDays').textContent = std.W.toLocaleString();
       document.getElementById('stdFude').textContent = std.N_after.toLocaleString();
+      document.getElementById('stdThreeTeamDays').textContent = std.threeTeamW.toLocaleString();
+      document.getElementById('stdOldDays').textContent = std.oldW.toLocaleString();
+      document.getElementById('stdDiffDays').textContent = (std.diff >= 0 ? '+' : '') + std.diff.toLocaleString();
       document.getElementById('optDays').textContent = opt.W.toLocaleString();
       document.getElementById('optFude').textContent = opt.N_after.toLocaleString();
       document.getElementById('pesDays').textContent = pes.W.toLocaleString();
@@ -830,7 +1200,7 @@
 
       renderTable(opt, std, pes);
       renderChart(opt, std, pes);
-      renderBreakdown(opt, std, pes, A_input, alpha);
+      renderBreakdown(opt, std, pes, A_input, alpha, experience, teamCount);
 
       showSections();
     }
@@ -850,7 +1220,7 @@
     // 入力変更で即時再計算
     // ===========================
 
-    ['inputArea', 'inputFude', 'inputAlpha'].forEach(id => {
+    ['inputArea', 'inputFude', 'inputAlpha', 'inputExperience', 'inputTeams'].forEach(id => {
       document.getElementById(id).addEventListener('input', function() {
         runCalc();
       });
@@ -862,12 +1232,13 @@
     function calcActualCheck() {
       // 実績データの面積は km² 単位（0.65 km² = 65 ha）→ 数式の A にそのまま代入（÷100 不要）
       const records = [
-        { id: 'chkR5', A: 0.65, N_after: 563, alpha: 1.25784, actual: 450 },
-        { id: 'chkR6', A: 0.44, N_after: 549, alpha: 1.23355, actual: 368 },
-        { id: 'chkR7', A: 0.72, N_after: 443, alpha: 1.31834, actual: 390 },
+        { id: 'chkR5', A: 0.65, N_after: 563, alpha: 1.25784, experience: 2.571, actual: 450 },
+        { id: 'chkR6', A: 0.44, N_after: 549, alpha: 1.23355, experience: 3.143, actual: 368 },
+        { id: 'chkR7', A: 0.72, N_after: 443, alpha: 1.31834, experience: 3.429, actual: 390 },
       ];
       records.forEach(function(r) {
-        const W = Math.round((151.14 * r.A + 0.437 * r.N_after) * r.alpha);
+        const oldRaw = (151.14 * r.A + 0.437 * r.N_after) * r.alpha;
+        const W = Math.round(MODEL.intercept + MODEL.baseCoef * oldRaw + MODEL.experienceCoef * r.experience);
         const diff = W - r.actual;
         const pct = (diff / r.actual * 100).toFixed(1);
         const sign = diff >= 0 ? '+' : '';
@@ -882,6 +1253,7 @@
     window.addEventListener('DOMContentLoaded', function() {
       runCalc();
       calcActualCheck();
+      renderValidationChart();
     });
 
   </script>
