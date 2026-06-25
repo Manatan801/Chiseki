@@ -205,9 +205,9 @@
                 class="w-full border border-gray-300 rounded-lg px-4 py-2.5 text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
               >
                 <option value="3">3班体制（R1〜R7実績基準）</option>
-                <option value="2">2班体制（3班基準の1.5倍で工程換算）</option>
+                <option value="2">2班体制（全班合計を2班で工程換算）</option>
               </select>
-              <p class="text-xs text-gray-400 mt-1">2班体制では同じ総業務量を少ない班数で処理するため、工程日数を 3/2 倍に換算します</p>
+              <p class="text-xs text-gray-400 mt-1">推計値は全班合計の業務量です。工程日数は全班合計日数を班数で割って換算します</p>
             </div>
 
             <!-- エラー表示 -->
@@ -287,19 +287,19 @@
           <div class="bg-[#1e3a8a] rounded-xl shadow-lg text-white p-6 mb-4">
             <div class="flex items-start justify-between">
               <div>
-                <p class="text-blue-200 text-sm font-medium mb-1">標準ケース（推奨計画値 ／ <span id="teamLabel">3班換算</span>）</p>
+                <p class="text-blue-200 text-sm font-medium mb-1">標準ケース（推奨計画値 ／ <span id="teamLabel">3班工程換算</span>）</p>
                 <div class="flex items-baseline gap-2">
                   <span id="stdDays" class="text-5xl font-bold tracking-tight">—</span>
                   <span class="text-2xl text-blue-200">日</span>
                 </div>
                 <p class="text-blue-300 text-sm mt-2">調査後筆数：<span id="stdFude" class="text-white font-semibold">—</span> 筆（残存率 69%）</p>
                 <p class="text-blue-200 text-xs mt-1">
-                  3班基準：<span id="stdThreeTeamDays" class="text-white font-semibold">—</span> 日 ／ 旧モデル参考値：<span id="stdOldDays" class="text-white font-semibold">—</span> 日 ／ 差分：<span id="stdDiffDays" class="text-white font-semibold">—</span> 日
+                  全班合計：<span id="stdTotalDays" class="text-white font-semibold">—</span> 日 ／ 旧モデル参考値：<span id="stdOldDays" class="text-white font-semibold">—</span> 日 ／ 差分：<span id="stdDiffDays" class="text-white font-semibold">—</span> 日
                 </p>
               </div>
               <div class="bg-white bg-opacity-10 rounded-lg p-3 text-right">
                 <p class="text-blue-200 text-xs">経験年数感度</p>
-                <p class="text-white text-sm font-semibold mt-1">3班基準 ±0.5年で 約∓47日</p>
+                <p class="text-white text-sm font-semibold mt-1">全班合計 ±0.5年で 約∓47日</p>
               </div>
             </div>
           </div>
@@ -342,7 +342,7 @@
                   <th class="px-4 py-3 text-left font-semibold">ケース</th>
                   <th class="px-4 py-3 text-right font-semibold">残存率</th>
                   <th class="px-4 py-3 text-right font-semibold">調査後筆数</th>
-                  <th class="px-4 py-3 text-right font-semibold">経験補正後<br><span id="tableTeamLabel">3班換算</span></th>
+                  <th class="px-4 py-3 text-right font-semibold">経験補正後<br><span id="tableTeamLabel">3班工程換算</span></th>
                   <th class="px-4 py-3 text-right font-semibold">旧モデル<br>参考値</th>
                   <th class="px-4 py-3 text-right font-semibold">差分</th>
                   <th class="px-4 py-3 text-right font-semibold">1筆あたり<br>日数目安</th>
@@ -520,10 +520,10 @@
                 <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 font-mono text-sm">
                   <p class="text-gray-800 font-semibold mb-2">base = (151.14 × A + 0.437 × N_after) × α</p>
                   <p class="text-gray-800 font-semibold mb-2">W = 580.80 + 0.2251 × base - 93.00 × Exp</p>
-                  <p class="text-gray-800 font-semibold mb-2">W_team = W × 3 ÷ 班数</p>
+                  <p class="text-gray-800 font-semibold mb-2">W_schedule = W ÷ 班数</p>
                   <div class="text-gray-600 space-y-1 text-xs">
-                    <p>W：推計調査日数</p>
-                    <p>W_team：選択した班体制での工程換算日数</p>
+                    <p>W：推計調査日数（全班合計）</p>
+                    <p>W_schedule：選択した班体制での工程換算日数</p>
                     <p>A：地区面積（内部単位、入力値 ha ÷ 100）</p>
                     <p>N_after：調査後筆数（合筆後）</p>
                     <p>α：傾斜・地形区分による平均補正係数</p>
@@ -792,14 +792,14 @@
       const areaPart = 151.14 * A * alpha;       // 面積基本分（生値）
       const fudePart = 0.437 * N_after * alpha;  // 筆数事務分（生値）
       const oldRaw = areaPart + fudePart;
-      const oldThreeTeamW = Math.round(oldRaw);
+      const oldTotalW = Math.round(oldRaw);
       const correctedRaw = MODEL.intercept + MODEL.baseCoef * oldRaw + MODEL.experienceCoef * experience;
-      const threeTeamW = Math.max(1, Math.round(correctedRaw));
-      const teamScale = 3 / teamCount;
-      const oldW = Math.max(1, Math.round(oldThreeTeamW * teamScale));
-      const W = Math.max(1, Math.round(threeTeamW * teamScale));
+      const totalW = Math.max(1, Math.round(correctedRaw));
+      const teamScale = 1 / teamCount;
+      const oldW = Math.max(1, Math.round(oldTotalW * teamScale));
+      const W = Math.max(1, Math.round(totalW * teamScale));
       const diff = W - oldW;
-      return { N_after, areaPart, fudePart, oldRaw, oldThreeTeamW, threeTeamW, oldW, correctedRaw, W, diff, teamScale };
+      return { N_after, areaPart, fudePart, oldRaw, oldTotalW, totalW, oldW, correctedRaw, W, diff, teamScale };
     }
 
     /**
@@ -972,7 +972,7 @@
               pointBorderColor: '#ffffff',
               pointBorderWidth: 2,
               pointRadius: 5,
-              tension: 0.25,
+              tension: 0,
             }
           ]
         },
@@ -1099,11 +1099,11 @@
 
       const container = document.getElementById('breakdownContent');
       const teamNote = teamCount === 2
-        ? '2班体制を選択中のため、3班基準の推計値を 3/2 倍して工程日数に換算しています。'
-        : '3班体制を選択中のため、R1〜R7実績基準の推計値をそのまま表示しています。';
+        ? '2班体制を選択中のため、全班合計の推計値を 2 で割って工程日数に換算しています。'
+        : '3班体制を選択中のため、全班合計の推計値を 3 で割って工程日数に換算しています。';
       container.innerHTML = `
         <p class="text-xs text-gray-500 mb-3">
-          ※ 旧モデル参考値（base）に平均経験年数補正をかけた値を主推計として表示します。${teamNote} 経験年数が0.5年増えると、3班基準で約46.5日減る感度です。
+          ※ 旧モデル参考値（base）に平均経験年数補正をかけた全班合計値を主推計とし、選択した班数で割った工程日数を表示します。${teamNote} 経験年数が0.5年増えると、全班合計で約46.5日減る感度です。
         </p>
       ` + scenarios.map(s => {
         const totalRaw = s.data.oldRaw;
@@ -1112,7 +1112,7 @@
         const diffText = s.data.diff >= 0 ? '+' + s.data.diff : s.data.diff;
         return `
           <div class="border rounded-lg ${s.bgClass} p-4">
-            <h4 class="font-semibold text-gray-800 mb-3 text-sm">${s.label}の内訳（${teamCount}班換算 ${s.data.W} 日 ／ 3班基準 ${s.data.threeTeamW} 日 ／ 旧モデル ${s.data.oldW} 日 ／ 差分 ${diffText} 日）</h4>
+            <h4 class="font-semibold text-gray-800 mb-3 text-sm">${s.label}の内訳（${teamCount}班工程 ${s.data.W} 日 ／ 全班合計 ${s.data.totalW} 日 ／ 旧モデル工程 ${s.data.oldW} 日 ／ 差分 ${diffText} 日）</h4>
             <div class="space-y-2">
               <!-- 面積基本分 -->
               <div>
@@ -1186,11 +1186,11 @@
       const pes = calcScenario(N_before, A, alpha, 0.82, experience, teamCount);
 
       // サマリー更新
-      document.getElementById('teamLabel').textContent = teamCount + '班換算';
-      document.getElementById('tableTeamLabel').textContent = teamCount + '班換算';
+      document.getElementById('teamLabel').textContent = teamCount + '班工程換算';
+      document.getElementById('tableTeamLabel').textContent = teamCount + '班工程換算';
       document.getElementById('stdDays').textContent = std.W.toLocaleString();
       document.getElementById('stdFude').textContent = std.N_after.toLocaleString();
-      document.getElementById('stdThreeTeamDays').textContent = std.threeTeamW.toLocaleString();
+      document.getElementById('stdTotalDays').textContent = std.totalW.toLocaleString();
       document.getElementById('stdOldDays').textContent = std.oldW.toLocaleString();
       document.getElementById('stdDiffDays').textContent = (std.diff >= 0 ? '+' : '') + std.diff.toLocaleString();
       document.getElementById('optDays').textContent = opt.W.toLocaleString();
